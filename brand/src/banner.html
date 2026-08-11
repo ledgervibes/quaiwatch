@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1500px; height: 500px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", sans-serif;
+    background: #0B0C0E;
+    position: relative;
+  }
+  .stage { position: absolute; inset: 0; }
+  svg { display: block; }
+  .wordmark {
+    position: absolute;
+    left: 120px;
+    top: 168px;
+  }
+  .brand-row { display: flex; align-items: center; gap: 20px; }
+  .title {
+    font-size: 78px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    color: #f8fafc;
+    line-height: 1;
+  }
+  .title .w { color: #a5b4fc; }
+  .tagline {
+    margin-top: 16px;
+    font-size: 26px;
+    font-weight: 500;
+    color: #94a3b8;
+    letter-spacing: 0.2px;
+  }
+  .badge {
+    position: absolute;
+    right: 60px;
+    top: 54px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: Consolas, monospace;
+    font-size: 17px;
+    letter-spacing: 2px;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+  .badge .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #22d3ee;
+    box-shadow: 0 0 10px #22d3ee;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <svg width="1500" height="500" viewBox="0 0 1500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#22d3ee" stop-opacity="0.22"/>
+        <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="0.28" cy="0.42" r="0.5">
+        <stop offset="0" stop-color="#4f46e5" stop-opacity="0.28"/>
+        <stop offset="1" stop-color="#4f46e5" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#6366f1"/>
+        <stop offset="1" stop-color="#22d3ee"/>
+      </linearGradient>
+    </defs>
+
+    <!-- glow accent kiri (di belakang wordmark) -->
+    <rect x="0" y="0" width="1500" height="500" fill="url(#glow)"/>
+
+    <!-- grid halus -->
+    <g stroke="#ffffff" stroke-opacity="0.035" stroke-width="1" id="grid"></g>
+
+    <!-- chart area + line, di-generate JS -->
+    <path id="area" fill="url(#fill)"/>
+    <path id="stroke" fill="none" stroke="url(#line)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>
+
+  <div class="wordmark">
+    <div class="brand-row">
+      <svg width="70" height="70" viewBox="0 0 48 48" fill="none">
+        <defs>
+          <linearGradient id="q" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1"/><stop offset="1" stop-color="#4338ca"/>
+          </linearGradient>
+        </defs>
+        <circle cx="21" cy="22" r="13" stroke="url(#q)" stroke-width="4" fill="none"/>
+        <path d="M20 30 l3.5 0 l2.5 -6 l3 12 l2.5 -8 l2 4 l3 0" stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="39" cy="10" r="6" fill="#22d3ee"/>
+        <circle cx="39" cy="10" r="6" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.5"/>
+      </svg>
+      <div class="title">Quai<span class="w">Watch</span></div>
+    </div>
+    <div class="tagline">Never Miss a Move on Quai.</div>
+  </div>
+
+  <div class="badge"><span class="dot"></span>Cyprus-1 · Quai Network</div>
+</div>
+
+<script>
+  // Data transaksi harian ASLI dari Quaiscan (31 hari, lama -> baru).
+  const data = [196097,156385,183535,166394,152781,195865,161888,159076,165683,190465,149951,176623,142009,222159,149209,181525,163048,134361,160909,251392,181088,135740,168261,226078,170025,161292,133757,221567,204372,165524,166709];
+
+  const W = 1500, H = 500;
+  const yTop = 250, yBottom = 430; // band chart (bawah-tengah, aman dari wordmark)
+  const min = Math.min(...data), max = Math.max(...data);
+  const n = data.length;
+
+  const x = i => (i / (n - 1)) * W;
+  const y = v => yBottom - ((v - min) / (max - min)) * (yBottom - yTop);
+
+  // smoothing kurva (Catmull-Rom -> Bezier) biar mulus, gak patah-patah
+  const pts = data.map((v, i) => [x(i), y(v)]);
+  function smooth(p) {
+    let d = `M ${p[0][0]} ${p[0][1]}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[i - 1] || p[i];
+      const p1 = p[i];
+      const p2 = p[i + 1];
+      const p3 = p[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2[0]} ${p2[1]}`;
+    }
+    return d;
+  }
+  const line = smooth(pts);
+  document.getElementById('stroke').setAttribute('d', line);
+  document.getElementById('area').setAttribute('d', `${line} L ${W} ${H} L 0 ${H} Z`);
+
+  // grid vertikal + horizontal halus
+  let g = '';
+  for (let gx = 0; gx <= W; gx += 100) g += `<line x1="${gx}" y1="0" x2="${gx}" y2="${H}"/>`;
+  for (let gy = 0; gy <= H; gy += 100) g += `<line x1="0" y1="${gy}" x2="${W}" y2="${gy}"/>`;
+  document.getElementById('grid').innerHTML = g;
+</script>
+</body>
+</html>

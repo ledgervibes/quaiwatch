@@ -1,0 +1,38 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# cloudflare
+.wrangler/
+.dev.vars
+
+# private working notes (kept locally, not published)
+/AGENTS.md
+/FITUR .txt
+/name projek,tagline,deskripsi dan konsep logo .txt
+/backup-*.txt

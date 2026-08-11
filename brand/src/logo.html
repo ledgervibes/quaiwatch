@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1024px; height: 1024px; overflow: hidden; }
+  body { background: #0B0C0E; position: relative; }
+  .stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="q" x1="300" y1="300" x2="760" y2="760" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#6366f1"/><stop offset="1" stop-color="#4338ca"/>
+      </linearGradient>
+      <radialGradient id="bg" cx="0.5" cy="0.42" r="0.62">
+        <stop offset="0" stop-color="#1e1b4b" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="#0B0C0E" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- background subtle glow -->
+    <rect width="1024" height="1024" fill="#0B0C0E"/>
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+
+    <!-- logo mark, di-scale dari viewBox 48 -> center 1024.
+         faktor skala 15x, offset biar center: (1024 - 48*15)/2 = 152 -->
+    <g transform="translate(152,152) scale(15)">
+      <circle cx="21" cy="22" r="13" stroke="url(#q)" stroke-width="4" fill="none"/>
+      <path d="M20 30 l3.5 0 l2.5 -6 l3 12 l2.5 -8 l2 4 l3 0" stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="39" cy="10" r="6" fill="#22d3ee"/>
+      <circle cx="39" cy="10" r="6" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.5"/>
+    </g>
+  </svg>
+</div>
+</body>
+</html>
