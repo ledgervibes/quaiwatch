@@ -97,7 +97,7 @@ export function TransactionFeed() {
           ? Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-12 animate-pulse" />
             ))
-          : filtered.slice(0, 15).map((tx) => <TxRow key={tx.hash} tx={tx} />)}
+          : filtered.slice(0, 10).map((tx) => <TxRow key={tx.hash} tx={tx} />)}
         {!loading && filtered.length === 0 && (
           <div className="py-6 text-center text-sm text-slate-500">
             No transactions for this filter.

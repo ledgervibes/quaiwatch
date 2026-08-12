@@ -22,6 +22,7 @@ ads, no tracking, no paid APIs.
 
 - **Network stats** — block height, TPS, gas price, total addresses &
   transactions, network utilization.
+- **QUAI price chart** — historical price (7D / 30D / 90D / 1Y) from CoinGecko.
 - **QUAI & Qi prices** — QUAI from CoinGecko; Qi derived on-chain from the
   protocol's own `quai_qiToQuai` conversion rate, since Qi isn't listed on any
   market data provider.

@@ -80,7 +80,6 @@ export function WalletExplorer() {
 
   return (
     <section className="card">
-      <h2 className="mb-3 text-sm font-semibold">Wallet Explorer</h2>
       <form onSubmit={search} className="flex gap-2">
         <input
           value={query}

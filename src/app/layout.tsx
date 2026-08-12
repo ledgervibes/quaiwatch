@@ -50,6 +50,7 @@ function Header() {
         </a>
         <nav className="flex items-center justify-center gap-1 sm:gap-2">
           <NavLink href="/">Dashboard</NavLink>
+          <NavLink href="/wallet">Wallet</NavLink>
           <NavLink href="/tokens">Tokens</NavLink>
           <NavLink href="/richlist">Rich List</NavLink>
           <a
