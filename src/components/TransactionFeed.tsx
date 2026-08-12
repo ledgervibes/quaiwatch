@@ -63,7 +63,7 @@ export function TransactionFeed() {
 
   return (
     <section className="card">
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-3 space-y-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Live Transactions</h2>
           <LiveDot />
