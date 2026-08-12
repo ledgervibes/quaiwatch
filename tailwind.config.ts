@@ -36,14 +36,9 @@ const config: Config = {
           "0%": { transform: "scale(0.8)", opacity: "0.8" },
           "100%": { transform: "scale(2.2)", opacity: "0" },
         },
-        blink: {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.35" },
-        },
       },
       animation: {
         "pulse-ring": "pulse-ring 1.8s cubic-bezier(0.4,0,0.6,1) infinite",
-        blink: "blink 1.4s ease-in-out infinite",
       },
     },
   },

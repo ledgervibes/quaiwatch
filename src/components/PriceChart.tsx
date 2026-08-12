@@ -16,7 +16,6 @@ import {
   type PricePoint,
 } from "@/lib/price";
 import { usd, pct } from "@/lib/format";
-import { LiveDot } from "@/components/ui";
 
 /** QUAI price chart with a 7D / 30D / 90D / 1Y range selector. */
 export function PriceChart() {
@@ -62,7 +61,6 @@ export function PriceChart() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold">QUAI Price</h2>
-            <LiveDot />
           </div>
           {stats && (
             <div className="mt-1 flex items-baseline gap-2">

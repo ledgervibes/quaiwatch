@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getStats, type NetworkStats } from "@/lib/quaiscan";
 import { getAllPrices, type Prices } from "@/lib/price";
 import { getBlockNumber, getGasPrice, formatQuaiAmount } from "@/lib/quai";
-import { StatCard, LiveDot } from "@/components/ui";
+import { StatCard, RefreshHint } from "@/components/ui";
 import { compactNumber, thousands, usd, pct, trimDecimals } from "@/lib/format";
 
 /**
@@ -71,9 +71,9 @@ export function NetworkOverview() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Network Overview
+          Network Pulse
         </h2>
-        <LiveDot />
+        <RefreshHint seconds={15} />
       </div>
 
       {err && (
@@ -82,8 +82,10 @@ export function NetworkOverview() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+      {/* Hero row: the two prices people come for. */}
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatCard
+          hero
           label="QUAI Price"
           loading={!prices}
           value={prices ? usd(prices.quaiUsd) : "-"}
@@ -96,11 +98,16 @@ export function NetworkOverview() {
           }
         />
         <StatCard
+          hero
           label="Qi Price (derived)"
           loading={!prices}
           value={prices ? usd(prices.qiUsd) : "-"}
           sub={prices ? `1 Qi = ${trimDecimals(String(prices.qiPerQuai), 4)} QUAI` : null}
         />
+      </div>
+
+      {/* Secondary row: network metrics, smaller. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label="Market Cap"
           loading={!prices}
