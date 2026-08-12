@@ -16,7 +16,8 @@ Free, open-source analytics dashboard for [Quai Network](https://qu.ai).
 
 QuaiWatch tracks network stats, wallet balances, token holdings, and live
 on-chain activity — built entirely on public Quai RPC and Quaiscan data. No
-ads, no tracking, no paid APIs.
+ads, no third-party tracking, no paid APIs. Traffic is measured with
+Cloudflare Web Analytics (privacy-first, cookieless).
 
 ## Features
 
