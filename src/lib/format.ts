@@ -1,15 +1,15 @@
 /**
- * lib/format.ts — helper tampilan (angka, alamat, waktu). Murni, tanpa dependency.
+ * lib/format.ts — display helpers (numbers, addresses, time). Pure, no dependencies.
  */
 
-/** Singkat alamat: 0x0011..85b8 */
+/** Shorten an address: 0x0011..85b8 */
 export function shortAddress(addr: string, head = 6, tail = 4): string {
   if (!addr) return "";
   if (addr.length <= head + tail) return addr;
   return `${addr.slice(0, head)}…${addr.slice(-tail)}`;
 }
 
-/** Format angka besar dengan suffix (K/M/B). */
+/** Format large numbers with a suffix (K/M/B). */
 export function compactNumber(n: number | string): string {
   const num = typeof n === "string" ? Number(n) : n;
   if (!isFinite(num)) return "-";
@@ -19,7 +19,7 @@ export function compactNumber(n: number | string): string {
   }).format(num);
 }
 
-/** Format angka dengan pemisah ribuan. */
+/** Format a number with thousands separators. */
 export function thousands(n: number | string): string {
   const num = typeof n === "string" ? Number(n) : n;
   if (!isFinite(num)) return "-";
@@ -30,7 +30,7 @@ export function thousands(n: number | string): string {
 export function usd(n: number, maxFrac = 6): string {
   if (!isFinite(n)) return "-";
   let min = n !== 0 && Math.abs(n) < 0.01 ? 4 : 2;
-  // minimumFractionDigits tidak boleh melebihi maximumFractionDigits
+  // minimumFractionDigits must not exceed maximumFractionDigits
   if (min > maxFrac) min = maxFrac;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -40,14 +40,14 @@ export function usd(n: number, maxFrac = 6): string {
   }).format(n);
 }
 
-/** Format persen dengan tanda. */
+/** Format a percentage with a sign. */
 export function pct(n: number): string {
   if (!isFinite(n)) return "-";
   const sign = n > 0 ? "+" : "";
   return `${sign}${n.toFixed(2)}%`;
 }
 
-/** Potong string desimal ke N digit signifikan tanpa membulatkan kasar. */
+/** Trim a decimal string to N significant digits without coarse rounding. */
 export function trimDecimals(v: string, maxFrac = 4): string {
   if (!v.includes(".")) return v;
   const [int, frac] = v.split(".");
@@ -71,10 +71,10 @@ export function timeAgo(ts: string | number | Date | null): string {
 }
 
 /**
- * Klasifikasi tipe transaksi Quai untuk filter feed.
- * Catatan: "token transfer" tidak diklasifikasikan di sini — endpoint
- * /main-page/transactions tidak menandai token transfer, jadi butuh decode
- * log Transfer. Filter token ditunda sampai itu tersedia.
+ * Classify the Quai transaction type for feed filtering.
+ * Note: "token transfer" is not classified here — the
+ * /main-page/transactions endpoint does not flag token transfers, so it needs
+ * decoding the Transfer log. Token filtering is deferred until that is available.
  */
 export type TxKind = "native" | "contract" | "coinbase" | "other";
 

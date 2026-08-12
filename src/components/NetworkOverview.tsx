@@ -8,12 +8,12 @@ import { StatCard, LiveDot } from "@/components/ui";
 import { compactNumber, thousands, usd, pct, trimDecimals } from "@/lib/format";
 
 /**
- * Panel Network Stats + harga.
- * - Stats network: Quaiscan /stats
- * - Block height: RPC quai_blockNumber (lebih fresh dari Quaiscan)
- * - Gas price: RPC quai_gasPrice (Quaiscan gas_prices null)
- * - Harga QUAI: CoinGecko; Qi: derive RPC
- * Refresh tiap 15 detik.
+ * Network Stats + price panel.
+ * - Network stats: Quaiscan /stats
+ * - Block height: RPC quai_blockNumber (fresher than Quaiscan)
+ * - Gas price: RPC quai_gasPrice (Quaiscan gas_prices is null)
+ * - QUAI price: CoinGecko; Qi: derived from RPC
+ * Refreshes every 15 seconds.
  */
 export function NetworkOverview() {
   const [stats, setStats] = useState<NetworkStats | null>(null);
@@ -41,12 +41,12 @@ export function NetworkOverview() {
       } catch (e) {
         if (alive && !ctrl.signal.aborted) setErr((e as Error).message);
       }
-      // harga dipisah — kalau CoinGecko lambat/limit, stats tetap tampil
+      // price is fetched separately — if CoinGecko is slow/rate-limited, stats still display
       try {
         const p = await getAllPrices(ctrl.signal);
         if (alive) setPrices(p);
       } catch {
-        /* diamkan: harga opsional */
+        /* ignore: price is optional */
       }
     }
 
@@ -60,7 +60,7 @@ export function NetworkOverview() {
   }, []);
 
   const avgBlockSec = stats ? (stats.average_block_time / 1000).toFixed(2) : null;
-  // TPS ~ transaksi hari ini / detik dalam sehari
+  // TPS ~ transactions today / seconds in a day
   const tps =
     stats && Number(stats.transactions_today) > 0
       ? (Number(stats.transactions_today) / 86400).toFixed(2)

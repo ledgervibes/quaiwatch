@@ -1,6 +1,6 @@
 "use client";
 
-/** Kartu statistik generik dengan state loading. */
+/** Generic statistic card with a loading state. */
 export function StatCard({
   label,
   value,
@@ -27,7 +27,7 @@ export function StatCard({
   );
 }
 
-/** Indikator "LIVE" dengan titik berdenyut. */
+/** "LIVE" indicator with a pulsing dot. */
 export function LiveDot({ label = "LIVE" }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-pulse">

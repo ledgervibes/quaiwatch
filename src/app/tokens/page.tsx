@@ -6,7 +6,7 @@ import { formatTokenAmount } from "@/lib/quai";
 import { shortAddress, thousands, compactNumber, trimDecimals } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
 
-/** Token Discovery: daftar semua QRC-20 (tanpa harga — tidak tersedia). */
+/** Token Discovery: list of all QRC-20 (without price — not available). */
 export default function TokensPage() {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,8 +51,8 @@ export default function TokensPage() {
       )
     : tokens;
 
-  // Saat user sedang memfilter, "Load more" disembunyikan (filter hanya
-  // berlaku pada data yang sudah dimuat) agar tidak membingungkan.
+  // While the user is filtering, "Load more" is hidden (the filter only
+  // applies to already-loaded data) to avoid confusion.
   const canLoadMore = !q && !!nextParams;
 
   return (

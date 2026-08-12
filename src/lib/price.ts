@@ -1,13 +1,13 @@
 /**
- * lib/price.ts — harga QUAI (CoinGecko) + harga Qi (diturunkan dari RPC).
+ * lib/price.ts — QUAI price (CoinGecko) + Qi price (derived from RPC).
  *
- * QUAI: ada di CoinGecko (gratis, tanpa API key, CORS terbuka).
- * Qi:   TIDAK ada di CoinGecko. Diturunkan dari quai_qiToQuai × harga QUAI.
- *       (Lihat lib/quai.ts:getQiPriceInQuai — hati-hati 3 desimal Qi.)
+ * QUAI: available on CoinGecko (free, no API key, open CORS).
+ * Qi:   NOT on CoinGecko. Derived from quai_qiToQuai × QUAI price.
+ *       (See lib/quai.ts:getQiPriceInQuai — careful with Qi's 3 decimals.)
  *
- * Dipanggil langsung dari browser. CoinGecko free punya rate limit per-IP,
- * jadi hasil di-cache di memori (per rentang) agar klik tombol berulang tidak
- * memanggil API lagi.
+ * Called directly from the browser. CoinGecko's free tier has a per-IP rate limit,
+ * so results are cached in memory (per range) so that repeated button clicks do not
+ * call the API again.
  */
 
 import { COINGECKO_QUAI_ID } from "./config";
@@ -41,13 +41,13 @@ export type Prices = {
   quaiUsd: number;
   quaiMarketCap: number;
   quai24hChange: number;
-  /** 1 Qi dalam QUAI */
+  /** 1 Qi in QUAI */
   qiPerQuai: number;
-  /** 1 Qi dalam USD (qiPerQuai × quaiUsd) */
+  /** 1 Qi in USD (qiPerQuai × quaiUsd) */
   qiUsd: number;
 };
 
-/** Ambil harga QUAI + turunkan harga Qi. Dua-duanya paralel. */
+/** Fetch the QUAI price + derive the Qi price. Both in parallel. */
 export async function getAllPrices(signal?: AbortSignal): Promise<Prices> {
   const [quai, qiPerQuai] = await Promise.all([
     getQuaiPrice(signal),
@@ -63,7 +63,7 @@ export async function getAllPrices(signal?: AbortSignal): Promise<Prices> {
 }
 
 // ============================================================
-// Chart harga historis QUAI (CoinGecko market_chart)
+// Historical QUAI price chart (CoinGecko market_chart)
 // ============================================================
 
 export type ChartRange = "7" | "30" | "90" | "365";
@@ -75,17 +75,17 @@ export const CHART_RANGES: { key: ChartRange; label: string }[] = [
   { key: "365", label: "1Y" },
 ];
 
-/** Satu titik pada chart: waktu (ms) + harga USD. */
+/** A single point on the chart: time (ms) + USD price. */
 export type PricePoint = { t: number; p: number };
 
-// Cache di memori per rentang. TTL 5 menit — cukup segar untuk chart harga,
-// dan menghindari rate limit CoinGecko saat user menekan tombol berulang.
+// In-memory cache per range. TTL 5 minutes — fresh enough for a price chart,
+// and avoids CoinGecko rate limits when the user presses the button repeatedly.
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const chartCache = new Map<ChartRange, { at: number; data: PricePoint[] }>();
 
 /**
- * Ambil riwayat harga QUAI untuk rentang tertentu.
- * days=7/30/90 → granular per jam; days=365 → per hari (dari CoinGecko).
+ * Fetch QUAI price history for a given range.
+ * days=7/30/90 → hourly granularity; days=365 → daily (from CoinGecko).
  */
 export async function getQuaiPriceChart(
   range: ChartRange,

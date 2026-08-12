@@ -1,29 +1,29 @@
 # QuaiWatch — Brand Assets
 
-Aset visual untuk sosial media & branding. Folder ini **tidak** ikut ter-deploy ke situs.
+Visual assets for social media and branding. This folder is **not** deployed to the site.
 
-## File
+## Files
 
-| File | Ukuran | Pakai untuk |
-|------|--------|-------------|
-| `quaiwatch-banner-1500x500.png` | 1500×500 | Header / cover akun X |
-| `quaiwatch-logo-400.png` | 400×400 | Foto profil X (ukuran rekomendasi resmi X) |
-| `quaiwatch-logo-1024.png` | 1024×1024 | Avatar bot Telegram, press, hi-res |
+| File | Size | Use for |
+|------|------|---------|
+| `quaiwatch-banner-1500x500.png` | 1500×500 | X account header / cover |
+| `quaiwatch-logo-400.png` | 400×400 | X profile photo (X's recommended size) |
+| `quaiwatch-logo-1024.png` | 1024×1024 | Telegram bot avatar, press, hi-res |
 
-## Desain
+## Design
 
-- **Warna**: indigo `#6366f1`/`#4338ca` + cyan aksen `#22d3ee`, background near-black `#0B0C0E` (sama dengan tema situs).
-- **Banner**: garis pada banner adalah grafik **transaksi harian Quai yang asli** (31 hari, sumber Quaiscan) — bukan dekorasi acak. Elemen penting ditaruh di band tengah agar tidak tertutup foto profil (yang menimpa kiri-bawah) atau terpotong crop X.
-- **Logo**: mark Q + garis pulse + dot notifikasi, identik dengan navbar & favicon situs.
+- **Colors**: indigo `#6366f1` / `#4338ca` + cyan accent `#22d3ee`, near-black background `#0B0C0E` (matches the site theme).
+- **Banner**: the line on the banner is the **real daily Quai transaction chart** (31 days, sourced from Quaiscan) — not random decoration. Key elements sit in the middle band so they aren't covered by the profile photo (which overlaps the bottom-left) or cropped by X.
+- **Logo**: Q mark + pulse line + notification dot, identical to the site's navbar and favicon.
 
-## Regenerasi
+## Regenerating
 
-Sumber ada di `src/*.html`. Untuk render ulang (mis. ganti warna/teks atau update data chart):
+Sources live in `src/*.html`. To re-render (e.g. change colors/text or update the chart data):
 
-1. Jalankan static server lokal yang menyajikan folder `src/`.
-2. Buka file HTML di browser dengan viewport diset persis ke ukuran target
-   (1500×500 untuk banner, 400×400 / 1024×1024 untuk logo).
-3. Screenshot full-page dengan device scale → PNG.
+1. Run a local static server that serves the `src/` folder.
+2. Open the HTML file in a browser with the viewport set to the exact target size
+   (1500×500 for the banner, 400×400 / 1024×1024 for the logo).
+3. Take a full-page screenshot at device scale → PNG.
 
-Data chart di `banner.html` bisa diperbarui dari:
+The chart data in `banner.html` can be refreshed from:
 `https://quaiscan.io/api/v2/stats/charts/transactions`

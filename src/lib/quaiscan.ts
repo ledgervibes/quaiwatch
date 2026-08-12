@@ -1,12 +1,12 @@
 /**
- * lib/quaiscan.ts — client Quaiscan API (Blockscout v6.3.0).
+ * lib/quaiscan.ts — Quaiscan API client (Blockscout v6.3.0).
  *
- * CORS "*" sudah diverifikasi, jadi dipanggil langsung dari browser (nol backend).
- * API v2 = utama. API v1 (etherscan-compatible) = fallback bila v2 error.
+ * CORS "*" has been verified, so it is called directly from the browser (zero backend).
+ * API v2 = primary. API v1 (etherscan-compatible) = fallback when v2 errors.
  *
- * CATATAN HARGA: field exchange_rate / circulating_market_cap SELALU null di
- * Quaiscan untuk token QRC-20 (dicek 50 token teratas: 0 yang punya harga).
- * Jadi UI hanya menampilkan JUMLAH token, tanpa nilai USD (Fase 1-3).
+ * PRICE NOTE: the exchange_rate / circulating_market_cap fields are ALWAYS null in
+ * Quaiscan for QRC-20 tokens (checked the top 50 tokens: 0 have a price).
+ * So the UI only shows token AMOUNTS, without USD value (Phase 1-3).
  */
 
 import { QUAISCAN_API_V2 } from "./config";
@@ -20,7 +20,7 @@ async function getV2<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Parameter pagination Blockscout (next_page_params) → query string. */
+/** Blockscout pagination parameters (next_page_params) → query string. */
 export type PageParams = Record<string, unknown> | null;
 
 function withParams(path: string, params?: PageParams): string {
@@ -144,8 +144,8 @@ export type TokenInfo = {
   type: string;
   holders: string;
   total_supply: string;
-  exchange_rate: string | null; // selalu null di Quai
-  circulating_market_cap: string | null; // selalu null
+  exchange_rate: string | null; // always null in Quai
+  circulating_market_cap: string | null; // always null
   icon_url: string | null;
 };
 

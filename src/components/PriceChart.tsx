@@ -18,7 +18,7 @@ import {
 import { usd, pct } from "@/lib/format";
 import { LiveDot } from "@/components/ui";
 
-/** Chart harga QUAI dengan pemilih rentang 7D / 30D / 90D / 1Y. */
+/** QUAI price chart with a 7D / 30D / 90D / 1Y range selector. */
 export function PriceChart() {
   const [range, setRange] = useState<ChartRange>("30");
   const [data, setData] = useState<PricePoint[]>([]);

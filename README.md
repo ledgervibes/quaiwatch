@@ -35,6 +35,11 @@ ads, no tracking, no paid APIs.
 - **Rich list** — top native QUAI holders.
 - **Dark / light mode.**
 
+## Roadmap
+
+QuaiWatch ships in phases — currently **v2.0** (Phase 2 complete). See
+[ROADMAP.md](ROADMAP.md) for the full plan.
+
 ## Technical notes
 
 - **Chain**: Quai Network, chain ID `9`. The only active zone today is

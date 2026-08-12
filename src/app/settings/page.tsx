@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import { SUPPORT } from "@/lib/config";
+import { VERSION } from "@/lib/roadmap";
 
 /**
- * Settings page. Urutan sesuai permintaan user:
+ * Settings page. Section order:
  *   1. Telegram Bot (coming soon)
- *   2. Buy Me a Coffee (alamat wallet + copy)
- *   3. Progress (v1.0 complete + deskripsi singkat)
- *   4. Disclaimer (dipindah dari footer)
- *   5. Links (GitHub + X, paling bawah)
- * Tanpa pemilihan tema (sudah ada di navbar toggle).
+ *   2. Buy Me a Coffee (wallet address + copy)
+ *   3. Progress (version complete + short description)
+ *   4. Disclaimer (moved from the footer)
+ *   5. Links (GitHub + X, at the bottom)
+ * No theme selection (already available via the navbar toggle).
  */
 export default function SettingsPage() {
   return (
@@ -57,7 +58,7 @@ function CoffeeSection() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      /* clipboard bisa gagal di beberapa konteks; abaikan */
+      /* clipboard may fail in some contexts; ignore */
     }
   }
 
@@ -101,7 +102,7 @@ function ProgressSection() {
     <section className="card text-center">
       <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        QuaiWatch v1.0 — Complete
+        QuaiWatch v{VERSION} — Complete
       </div>
       <p className="mx-auto mt-3 max-w-md text-sm text-slate-600 dark:text-slate-300">
         QuaiWatch is a real-time analytics dashboard for Quai Network. It tracks

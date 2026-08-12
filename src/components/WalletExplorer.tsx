@@ -17,8 +17,8 @@ import { shortAddress, timeAgo, trimDecimals, thousands } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
 
 /**
- * Wallet Explorer: cari address → balance QUAI + semua QRC-20 (tanpa USD) + riwayat.
- * Token QRC-20 sengaja TIDAK menampilkan nilai USD (tidak ada sumber harga gratis).
+ * Wallet Explorer: search an address → QUAI balance + all QRC-20 (without USD) + history.
+ * QRC-20 tokens intentionally do NOT show USD value (no free price source).
  */
 export function WalletExplorer() {
   const [query, setQuery] = useState("");
@@ -123,7 +123,7 @@ export function WalletExplorer() {
             </div>
           </div>
 
-          {/* Token QRC-20 — tanpa nilai USD */}
+          {/* QRC-20 tokens — without USD value */}
           <div>
             <div className="mb-2 flex items-center gap-2">
               <h3 className="text-sm font-semibold">Tokens (QRC-20)</h3>
@@ -152,7 +152,7 @@ export function WalletExplorer() {
             )}
           </div>
 
-          {/* Riwayat transaksi */}
+          {/* Transaction history */}
           <div>
             <h3 className="mb-2 text-sm font-semibold">Recent Transactions</h3>
             {txs.length === 0 ? (

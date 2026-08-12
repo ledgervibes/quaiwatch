@@ -10,11 +10,11 @@ import { QUAISCAN_BASE } from "@/lib/config";
 /**
  * Live Transaction Feed.
  *
- * Catatan implementasi: rencana awal pakai WebSocket (wss). Untuk Fase 1 kita
- * pakai polling Quaiscan /main-page/transactions tiap 5 detik (block time ~4s).
- * Alasan: lebih tahan banting untuk static export (WS provider quais alpha butuh
- * penanganan reconnect yang lebih ribet), dan konsekuensi "telat 5 detik" di feed
- * dashboard itu kecil. Upgrade ke WebSocket bisa dilakukan tanpa mengubah UI ini.
+ * Implementation note: the original plan was to use WebSocket (wss). For Phase 1 we
+ * use polling of Quaiscan /main-page/transactions every 5 seconds (block time ~4s).
+ * Reason: it is more robust for static export (the quais alpha WS provider needs
+ * more complex reconnect handling), and the "5-second delay" in the dashboard feed
+ * has little impact. Upgrading to WebSocket can be done without changing this UI.
  */
 
 const FILTERS: { key: TxKind | "all"; label: string }[] = [

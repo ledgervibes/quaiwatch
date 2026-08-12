@@ -4,11 +4,11 @@ import { usePathname } from "next/navigation";
 import { SUPPORT } from "@/lib/config";
 
 /**
- * Footer global. Disembunyikan di halaman /settings karena deskripsi, GitHub,
- * dan X sudah tampil di sana (biar gak duplikat).
+ * Global footer. Hidden on the /settings page because the description, GitHub,
+ * and X already appear there (to avoid duplication).
  *
- * Catatan: next.config.ts pakai trailingSlash:true, jadi usePathname() balikin
- * "/settings/" (ada garis miring). Kita normalisasi dulu sebelum banding.
+ * Note: next.config.ts uses trailingSlash:true, so usePathname() returns
+ * "/settings/" (with a trailing slash). We normalize it before comparing.
  */
 export function Footer() {
   const pathname = usePathname();
