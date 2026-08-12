@@ -80,5 +80,5 @@ export const SUPPORT = {
   githubUrl: "https://github.com/ledgervibes/quaiwatch",
 } as const;
 
-/** SOAP burn address (buyback from external merged-mining). Used in Phase 4. */
+/** SOAP burn address (buyback from external merged-mining). Used in Phase 6. */
 export const SOAP_BURN_ADDRESS = "0x0050AF0000000000000000000000000000000000";

@@ -21,15 +21,27 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 ## ⏳ Phase 3 — Telegram alert bot
 
-- Real-time wallet alerts for incoming/outgoing QUAI and QRC-20 transfers
+- Multi-address watchlist
+- Custom alert threshold (only notify above a chosen amount)
+- Alerts for QUAI and all QRC-20 transfers
 
-## Phase 4 — DeFi & SOAP analytics
+## Phase 4 — Deeper analytics
+
+- Miner analytics (block distribution, hashrate share)
+- ETX composition breakdown (coinbase / cross-shard / conversion mix)
+- Token holder distribution (top 50 holders)
+
+## Phase 5 — Wrapped Qi (WQI) tracking
+
+- WQI holders, transfers, and activity — the Qi ↔ Quai-ledger flow
+
+## Phase 6 — DeFi & SOAP analytics
 
 - DEX TVL tracking
 - QRC-20 prices derived from pool reserves
 - SOAP buyback history
 
-## Phase 5 — Wallet connect & public API
+## Phase 7 — Wallet connect & public API
 
 - Pelagus wallet connection
 - Portfolio tracker
@@ -37,4 +49,16 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 ---
 
-Phases 3–5 are planned directions, not commitments to a schedule. Everything is built on a 100% free stack (public Quai RPC, Quaiscan, Cloudflare).
+## Not on the roadmap yet (blocked — no data)
+
+- **Cross-shard activity viewer** — only Cyprus-1 is active today
+  (`quai_listRunningChains → [[0,0]]`). A 12-block scan showed 188/188 ETXs are
+  coinbase, with zero cross-shard transfers. Will be added once the network
+  expands to more zones; the data layer is already multi-zone-ready.
+- **Quai ↔ Qi conversion monitoring** — protocol conversions (ETX subtype 2)
+  are not yet visible in sampled blocks. Will be added once conversion activity
+  appears on-chain.
+
+---
+
+Phases 3–7 are planned directions, not commitments to a schedule. Everything is built on a 100% free stack (public Quai RPC, Quaiscan, Cloudflare).

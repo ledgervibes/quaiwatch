@@ -6,7 +6,7 @@
  *
  * PRICE NOTE: the exchange_rate / circulating_market_cap fields are ALWAYS null in
  * Quaiscan for QRC-20 tokens (checked the top 50 tokens: 0 have a price).
- * So the UI only shows token AMOUNTS, without USD value (Phase 1-3).
+ * So the UI only shows token AMOUNTS, without USD value (until Phase 6, DeFi pools).
  */
 
 import { QUAISCAN_API_V2 } from "./config";

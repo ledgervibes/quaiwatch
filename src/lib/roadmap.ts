@@ -40,10 +40,30 @@ export const PHASES: Phase[] = [
     n: 3,
     title: "Telegram alert bot",
     done: false,
-    items: ["Real-time wallet alerts for QUAI and QRC-20 transfers"],
+    items: [
+      "Multi-address watchlist",
+      "Custom alert threshold",
+      "Alerts for QUAI and all QRC-20 transfers",
+    ],
   },
   {
     n: 4,
+    title: "Deeper analytics",
+    done: false,
+    items: [
+      "Miner analytics (block distribution, hashrate share)",
+      "ETX composition breakdown",
+      "Token holder distribution (top 50)",
+    ],
+  },
+  {
+    n: 5,
+    title: "Wrapped Qi (WQI) tracking",
+    done: false,
+    items: ["WQI holders, transfers, and activity"],
+  },
+  {
+    n: 6,
     title: "DeFi & SOAP analytics",
     done: false,
     items: [
@@ -53,7 +73,7 @@ export const PHASES: Phase[] = [
     ],
   },
   {
-    n: 5,
+    n: 7,
     title: "Wallet connect & public API",
     done: false,
     items: ["Pelagus connect", "Portfolio tracker", "Read-only public API"],
