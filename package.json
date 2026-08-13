@@ -1,6 +1,6 @@
 {
   "name": "quaiwatch",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Never Miss a Move on Quai. Analytics dashboard for Quai Network.",
   "scripts": {
@@ -17,6 +17,7 @@
     "recharts": "2.15.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260812.1",
     "@types/node": "22.10.7",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",

@@ -39,11 +39,11 @@ export const PHASES: Phase[] = [
   {
     n: 3,
     title: "Telegram alert bot",
-    done: false,
+    done: true,
     items: [
       "Multi-address watchlist",
-      "Custom alert threshold",
-      "Alerts for QUAI and all QRC-20 transfers",
+      "Alerts for QUAI (from 1 QUAI) and all QRC-20 transfers",
+      "Coinbase rewards ignored",
     ],
   },
   {

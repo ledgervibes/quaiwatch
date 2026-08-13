@@ -1,0 +1,16 @@
+name = "quaiwatch-bot"
+main = "index.ts"
+compatibility_date = "2024-11-01"
+
+# Public URL of this Worker; used to auto-register the Telegram webhook.
+# Update this after the first deploy if the subdomain differs.
+[vars]
+PUBLIC_URL = "https://quaiwatch-bot.sna4an287.workers.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quaiwatch"
+database_id = "092ac51e-ca90-4684-831a-95138f11a004"
+
+[triggers]
+crons = ["* * * * *"]

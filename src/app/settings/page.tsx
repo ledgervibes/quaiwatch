@@ -37,12 +37,14 @@ function TelegramSection() {
             Real-time wallet alerts for incoming &amp; outgoing transactions.
           </p>
         </div>
-        <button
-          disabled
-          className="shrink-0 cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-500"
+        <a
+          href="https://t.me/QuaiWatchAlertBot"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500"
         >
-          Coming Soon
-        </button>
+          Open Bot
+        </a>
       </div>
     </section>
   );
@@ -63,7 +65,7 @@ function CoffeeSection() {
   }
 
   return (
-    <section className="card">
+    <section className="card" id="support">
       <h2 className="text-sm font-semibold">☕ Buy Me a Coffee</h2>
       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
         QuaiWatch is free and ad-free. If it helps you, consider supporting its

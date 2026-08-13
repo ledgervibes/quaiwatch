@@ -24,6 +24,9 @@ importers:
         specifier: 2.15.0
         version: 2.15.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260812.1
+        version: 5.20260812.1
       '@types/node':
         specifier: 22.10.7
         version: 22.10.7
@@ -61,6 +64,9 @@ packages:
 
   '@brandonblack/musig@0.0.1-alpha.1':
     resolution: {integrity: sha512-00RbByQG85lSzrkDjCblzrUc2n1LJAPPrEMHS4oMg+QckE0kzjd26JytT6yx6tNU2+aOXfK7O4kGW/sKVL67cw==}
+
+  '@cloudflare/workers-types@5.20260812.1':
+    resolution: {integrity: sha512-eG2aQdUWH8RYEubpBjUE98L2G57JYzGEcI8PgROTjt9YjunbEnPBHP4371Usj8v8pTWcXtbOmI+LRCXF4KhJgQ==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -921,6 +927,8 @@ snapshots:
       '@noble/curves': 1.9.7
 
   '@brandonblack/musig@0.0.1-alpha.1': {}
+
+  '@cloudflare/workers-types@5.20260812.1': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:
