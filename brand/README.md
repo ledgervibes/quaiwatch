@@ -9,6 +9,7 @@ Visual assets for social media and branding. This folder is **not** deployed to 
 | `quaiwatch-banner-1500x500.png` | 1500×500 | X account header / cover |
 | `quaiwatch-logo-400.png` | 400×400 | X profile photo (X's recommended size) |
 | `quaiwatch-logo-1024.png` | 1024×1024 | Telegram bot avatar, press, hi-res |
+| `quaiwatch-alerts-1600x900.png` | 1600×900 | Social post — Telegram alerts launch (Phase 3) |
 
 ## Design
 

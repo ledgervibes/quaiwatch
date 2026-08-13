@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1600px; height: 900px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", sans-serif;
+    background: #0B0C0E;
+    position: relative;
+    color: #f8fafc;
+  }
+  .stage { position: absolute; inset: 0; }
+  svg.bg { position: absolute; inset: 0; }
+  .content {
+    position: absolute;
+    inset: 0;
+    padding: 90px 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .brand-row { display: flex; align-items: center; gap: 18px; margin-bottom: 54px; }
+  .brand-name { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; }
+  .headline {
+    font-size: 94px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.02;
+  }
+  .headline .accent { color: #a5b4fc; }
+  .subhead {
+    margin-top: 18px;
+    font-size: 34px;
+    font-weight: 500;
+    color: #94a3b8;
+  }
+  .layout { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
+  .left { flex: 1; }
+  /* Alert card — a designed element, not a fake Telegram screenshot */
+  .card {
+    width: 560px;
+    background: linear-gradient(160deg, rgba(30,27,75,0.55), rgba(17,17,20,0.85));
+    border: 1px solid rgba(99,102,241,0.35);
+    border-radius: 22px;
+    padding: 30px 34px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.45);
+  }
+  .card-title { font-size: 24px; font-weight: 700; color: #e2e8f0; margin-bottom: 20px; }
+  .card-row-main { display: flex; align-items: baseline; gap: 14px; }
+  .in-badge {
+    font-size: 20px; font-weight: 700; color: #34d399;
+    background: rgba(16,185,129,0.14); padding: 4px 12px; border-radius: 8px;
+  }
+  .amount { font-size: 40px; font-weight: 800; color: #f8fafc; font-variant-numeric: tabular-nums; }
+  .card-line { margin-top: 16px; font-family: Consolas, monospace; font-size: 22px; color: #c7d2fe; }
+  .card-meta { margin-top: 8px; font-size: 18px; color: #64748b; }
+  .footer {
+    position: absolute;
+    left: 100px; bottom: 70px;
+    display: flex; align-items: center; gap: 16px;
+    font-size: 24px; color: #94a3b8; font-weight: 500;
+  }
+  .footer .dot { color: #475569; }
+  .footer .cta { color: #22d3ee; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <svg class="bg" width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="glow" cx="0.72" cy="0.35" r="0.55">
+        <stop offset="0" stop-color="#4f46e5" stop-opacity="0.25"/>
+        <stop offset="1" stop-color="#4f46e5" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="1600" height="900" fill="#0B0C0E"/>
+    <rect width="1600" height="900" fill="url(#glow)"/>
+    <g stroke="#ffffff" stroke-opacity="0.035" stroke-width="1" id="grid"></g>
+  </svg>
+
+  <div class="content">
+    <div class="brand-row">
+      <svg width="54" height="54" viewBox="0 0 48 48" fill="none">
+        <defs>
+          <linearGradient id="q" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1"/><stop offset="1" stop-color="#4338ca"/>
+          </linearGradient>
+        </defs>
+        <circle cx="21" cy="22" r="13" stroke="url(#q)" stroke-width="4" fill="none"/>
+        <path d="M20 30 l3.5 0 l2.5 -6 l3 12 l2.5 -8 l2 4 l3 0" stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="39" cy="10" r="6" fill="#22d3ee"/>
+        <circle cx="39" cy="10" r="6" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.5"/>
+      </svg>
+      <div class="brand-name">QuaiWatch</div>
+    </div>
+
+    <div class="layout">
+      <div class="left">
+        <div class="headline">Wallet <span class="accent">Alerts</span></div>
+        <div class="subhead">Now live on Telegram</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔔 Wallet Alert</div>
+        <div class="card-row-main">
+          <span class="in-badge">IN</span>
+          <span class="amount">+1,250.00 QUAI</span>
+        </div>
+        <div class="card-line">0x0045F3…8Fc8</div>
+        <div class="card-meta">Block #9,545,526 · Cyprus-1</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>QUAI + all QRC-20</span>
+    <span class="dot">·</span>
+    <span>Free &amp; open-source</span>
+    <span class="dot">·</span>
+    <span class="cta">t.me/QuaiWatchAlertBot</span>
+  </div>
+</div>
+
+<script>
+  let g = '';
+  for (let gx = 0; gx <= 1600; gx += 80) g += `<line x1="${gx}" y1="0" x2="${gx}" y2="900"/>`;
+  for (let gy = 0; gy <= 900; gy += 80) g += `<line x1="0" y1="${gy}" x2="1600" y2="${gy}"/>`;
+  document.getElementById('grid').innerHTML = g;
+</script>
+</body>
+</html>
