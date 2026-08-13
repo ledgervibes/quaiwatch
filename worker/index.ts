@@ -27,7 +27,7 @@ import {
 import { scan } from "./scanner";
 import { rpc, formatUnits } from "./rpc";
 
-const MAX_WALLETS = 20;
+const MAX_WALLETS = 10;
 const ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
 const WEBHOOK_FLAG = "webhook_registered";
 
@@ -71,6 +71,56 @@ async function runCron(env: Env): Promise<void> {
     await setState(env.DB, WEBHOOK_FLAG, "1");
   }
   await scan(env);
+  // Best-effort QUAI price refresh (CoinGecko rate-limits Cloudflare IPs, so
+  // we retry every cron tick; occasional successes keep the cached value fresh).
+  await refreshPrice(env);
+}
+
+/** Try to fetch QUAI price and store it in D1. Silent on failure. */
+async function refreshPrice(env: Env): Promise<void> {
+  const p = await fetchQuaiPrice();
+  if (p) {
+    await setState(env.DB, "quai_price", `${Date.now()}|${p.usd}|${p.chg}`);
+  }
+}
+
+/**
+ * Fetch QUAI price from CoinPaprika (primary) or CoinGecko (fallback).
+ * CoinPaprika doesn't rate-limit Cloudflare's shared IPs like CoinGecko does.
+ */
+async function fetchQuaiPrice(): Promise<{ usd: number; chg: number } | null> {
+  // Primary: CoinPaprika
+  try {
+    const res = await fetch("https://api.coinpaprika.com/v1/tickers/quai-quai-network", {
+      headers: { Accept: "application/json", "User-Agent": "QuaiWatch/1.0" },
+    });
+    if (res.ok) {
+      const j = (await res.json()) as {
+        quotes?: { USD?: { price: number; percent_change_24h: number } };
+      };
+      const usd = j.quotes?.USD?.price;
+      if (usd) return { usd, chg: j.quotes!.USD!.percent_change_24h ?? 0 };
+    }
+  } catch {
+    /* try fallback */
+  }
+  // Fallback: CoinGecko
+  try {
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=quai-network&vs_currencies=usd&include_24hr_change=true",
+      { headers: { Accept: "application/json", "User-Agent": "QuaiWatch/1.0" } },
+    );
+    if (res.ok) {
+      const cg = (await res.json()) as {
+        "quai-network"?: { usd: number; usd_24h_change: number };
+      };
+      const q = cg["quai-network"];
+      if (q) return { usd: q.usd, chg: q.usd_24h_change };
+    }
+  } catch {
+    /* give up */
+  }
+  return null;
 }
 
 async function registerWebhook(env: Env): Promise<void> {
@@ -120,7 +170,7 @@ async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     return;
   }
   if (cmd === "/price" || cmd === "💰 quai price") {
-    await sendMessage(token, chatId, await priceText(), { reply_markup: MAIN_KEYBOARD });
+    await sendMessage(token, chatId, await priceText(env), { reply_markup: MAIN_KEYBOARD });
     return;
   }
   if (cmd === "/list" || cmd === "📋 my wallets") {
@@ -190,27 +240,47 @@ async function listText(env: Env, chatId: number): Promise<string> {
   return `<b>📋 Your Wallets (${addrs.length}/${MAX_WALLETS})</b>\n\n${lines.join("\n")}\n\nUse /remove to stop watching one.`;
 }
 
-async function priceText(): Promise<string> {
+async function priceText(env: Env): Promise<string> {
   try {
-    const cg = (await (
-      await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=quai-network&vs_currencies=usd&include_24hr_change=true",
-      )
-    ).json()) as { "quai-network": { usd: number; usd_24h_change: number } };
-    const quai = cg["quai-network"];
-    // Qi price: quai_qiToQuai for 1,000,000 Qi (Qi has 3 decimals → 1e9 qits).
+    // Qi rate is cheap (Quai RPC, no rate limit) — always fresh.
     const hexWei = await rpc<string>("quai_qiToQuai", ["0x3b9aca00", "latest"]);
     const wei = BigInt(hexWei);
     const quaiPerMillionQi = Number(formatUnits(wei, 18));
     const qiPerQuai = quaiPerMillionQi / 1_000_000;
-    const qiUsd = qiPerQuai * quai.usd;
-    const chg = quai.usd_24h_change;
+
+    // QUAI/USD is refreshed by the cron job (refreshPrice) and cached in D1.
+    // The command itself reads the cache — it never calls CoinGecko directly,
+    // so a user spamming /price can't trigger rate limits.
+    let usd = 0;
+    let chg = 0;
+    const cached = await getState(env.DB, "quai_price");
+    if (cached) {
+      const [, u, c] = cached.split("|");
+      usd = Number(u);
+      chg = Number(c);
+    } else {
+      // No cached price yet (cron hasn't succeeded once). Try a direct fetch.
+      const p = await fetchQuaiPrice();
+      if (p) {
+        usd = p.usd;
+        chg = p.chg;
+        await setState(env.DB, "quai_price", `${Date.now()}|${usd}|${chg}`);
+      }
+    }
+
+    if (!usd) {
+      // Still show the Qi rate even if USD is unavailable.
+      return `🔸 <b>Qi</b>  1 Qi = ${qiPerQuai.toFixed(2)} QUAI\n\n(QUAI/USD price loading — try again in a minute.)`;
+    }
+
+    const qiUsd = qiPerQuai * usd;
     const chgStr = (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
     return (
-      `💰 <b>QUAI</b>  $${quai.usd.toFixed(6)}  (${chgStr} 24h)\n` +
+      `💰 <b>QUAI</b>  $${usd.toFixed(6)}  (${chgStr} 24h)\n` +
       `🔸 <b>Qi</b>    $${qiUsd.toFixed(4)}  (1 Qi = ${qiPerQuai.toFixed(2)} QUAI)`
     );
-  } catch {
+  } catch (e) {
+    console.log("priceText error: " + (e as Error).message);
     return "Price data is temporarily unavailable. Try again in a moment.";
   }
 }
