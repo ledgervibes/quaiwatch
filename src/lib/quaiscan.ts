@@ -172,3 +172,19 @@ export function getAddressTxs(
 export function getTokens(params?: PageParams, signal?: AbortSignal): Promise<Paginated<TokenInfo>> {
   return getV2<Paginated<TokenInfo>>(withParams("/tokens?type=ERC-20", params), signal);
 }
+
+// ---------- Token holders (Phase 4: holder distribution) ----------
+
+export type TokenHolder = {
+  address: AddressRef;
+  value: string;
+  token: TokenInfo;
+};
+
+/** Top holders of a token (Quaiscan returns up to 50 per page). */
+export function getTokenHolders(
+  tokenAddress: string,
+  signal?: AbortSignal,
+): Promise<Paginated<TokenHolder>> {
+  return getV2<Paginated<TokenHolder>>(`/tokens/${tokenAddress}/holders`, signal);
+}

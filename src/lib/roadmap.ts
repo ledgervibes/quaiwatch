@@ -49,7 +49,7 @@ export const PHASES: Phase[] = [
   {
     n: 4,
     title: "Deeper analytics",
-    done: false,
+    done: true,
     items: [
       "Miner analytics (block distribution, hashrate share)",
       "ETX composition breakdown",

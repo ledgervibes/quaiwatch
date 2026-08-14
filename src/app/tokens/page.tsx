@@ -5,6 +5,7 @@ import { getTokens, type TokenInfo, type PageParams } from "@/lib/quaiscan";
 import { formatTokenAmount } from "@/lib/quai";
 import { shortAddress, thousands, compactNumber, trimDecimals } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
+import { HolderPanel } from "@/components/HolderPanel";
 
 /** Token Discovery: list of all QRC-20 (without price — not available). */
 export default function TokensPage() {
@@ -55,6 +56,8 @@ export default function TokensPage() {
   // applies to already-loaded data) to avoid confusion.
   const canLoadMore = !q && !!nextParams;
 
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -95,30 +98,7 @@ export default function TokensPage() {
                   </tr>
                 ))
               : filtered.map((t) => (
-                  <tr key={t.address} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{t.symbol || "?"}</div>
-                      <div className="text-xs text-slate-400">{t.name}</div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {thousands(t.holders)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {compactNumber(
-                        Number(trimDecimals(formatTokenAmount(t.total_supply, Number(t.decimals || 18)), 0)),
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <a
-                        href={`${QUAISCAN_BASE}/token/${t.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="link mono text-xs"
-                      >
-                        {shortAddress(t.address)}
-                      </a>
-                    </td>
-                  </tr>
+                  <FragmentRow key={t.address} t={t} expanded={expanded} setExpanded={setExpanded} />
                 ))}
           </tbody>
         </table>
@@ -136,5 +116,59 @@ export default function TokensPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function FragmentRow({
+  t,
+  expanded,
+  setExpanded,
+}: {
+  t: TokenInfo;
+  expanded: string | null;
+  setExpanded: (v: string | null) => void;
+}) {
+  const isOpen = expanded === t.address;
+  return (
+    <>
+      <tr
+        onClick={() => setExpanded(isOpen ? null : t.address)}
+        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
+      >
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400">{isOpen ? "▾" : "▸"}</span>
+            <div>
+              <div className="font-medium">{t.symbol || "?"}</div>
+              <div className="text-xs text-slate-400">{t.name}</div>
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-right tabular-nums">{thousands(t.holders)}</td>
+        <td className="px-4 py-3 text-right tabular-nums">
+          {compactNumber(
+            Number(trimDecimals(formatTokenAmount(t.total_supply, Number(t.decimals || 18)), 0)),
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <a
+            href={`${QUAISCAN_BASE}/token/${t.address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="link mono text-xs"
+          >
+            {shortAddress(t.address)}
+          </a>
+        </td>
+      </tr>
+      {isOpen && (
+        <tr>
+          <td colSpan={4} className="p-0">
+            <HolderPanel token={t} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

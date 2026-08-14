@@ -49,6 +49,29 @@ export async function rpcCall<T = unknown>(
 
 // ---- RPC helpers ----
 
+type BatchReq = { method: string; params: RpcParam[]; id: number };
+
+/** Batch JSON-RPC — one HTTP request for many calls. Results mapped back by id. */
+export async function rpcBatch<T = unknown>(
+  reqs: BatchReq[],
+  zone: ZoneConfig = DEFAULT_ZONE,
+  signal?: AbortSignal,
+): Promise<(T | null)[]> {
+  if (reqs.length === 0) return [];
+  const body = reqs.map((r) => ({ jsonrpc: "2.0", ...r }));
+  const res = await fetch(zone.rpc, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`RPC batch HTTP ${res.status}`);
+  const json = (await res.json()) as { id: number; result?: T; error?: unknown }[];
+  const byId = new Map<number, T | null>();
+  for (const item of json) byId.set(item.id, item.error ? null : (item.result as T));
+  return reqs.map((r) => byId.get(r.id) ?? null);
+}
+
 export async function getBlockNumber(zone: ZoneConfig = DEFAULT_ZONE): Promise<number> {
   const hex = await rpcCall<string>("quai_blockNumber", [], zone);
   return hexToNumber(hex);
@@ -58,6 +81,72 @@ export async function getGasPrice(zone: ZoneConfig = DEFAULT_ZONE): Promise<bigi
   const hex = await rpcCall<string>("quai_gasPrice", [], zone);
   return hexToBigInt(hex);
 }
+
+/**
+ * Header of a Quai block. quai_getHeaderByNumber is ~4x lighter than
+ * getBlockByNumber (no transactions), and still carries woHeader with the
+ * primaryCoinbase (the miner) and difficulty — enough for mining analytics.
+ */
+export type QuaiHeader = {
+  number: string;
+  woHeader: {
+    number: string;
+    primaryCoinbase: string;
+    difficulty: string;
+    timestamp: string;
+    [k: string]: unknown;
+  };
+  workshares?: unknown[];
+  [k: string]: unknown;
+};
+
+/**
+ * Fetch headers for [latest-count+1 .. latest] in a single batch request.
+ * Returns headers newest-first is NOT guaranteed; caller should not rely on order.
+ */
+export async function getRecentHeaders(
+  count: number,
+  zone: ZoneConfig = DEFAULT_ZONE,
+  signal?: AbortSignal,
+): Promise<QuaiHeader[]> {
+  const latest = await getBlockNumber(zone);
+  const reqs: BatchReq[] = [];
+  // Skip the newest 2 blocks to avoid reorg edge.
+  for (let i = 0; i < count; i++) {
+    const n = latest - 2 - i;
+    if (n < 0) break;
+    reqs.push({ method: "quai_getHeaderByNumber", params: [numberToHex(n)], id: n });
+  }
+  const results = await rpcBatch<QuaiHeader>(reqs, zone, signal);
+  return results.filter((h): h is QuaiHeader => h != null);
+}
+
+/**
+ * Fetch full blocks (with transactions) for the most recent `count` blocks in
+ * one batch. Heavier than headers; used for ETX composition + workshares.
+ */
+export async function getRecentBlocks(
+  count: number,
+  zone: ZoneConfig = DEFAULT_ZONE,
+  signal?: AbortSignal,
+): Promise<QuaiBlock[]> {
+  const latest = await getBlockNumber(zone);
+  const reqs: BatchReq[] = [];
+  for (let i = 0; i < count; i++) {
+    const n = latest - 2 - i;
+    if (n < 0) break;
+    reqs.push({ method: "quai_getBlockByNumber", params: [numberToHex(n), true], id: n });
+  }
+  const results = await rpcBatch<QuaiBlock>(reqs, zone, signal);
+  return results.filter((b): b is QuaiBlock => b != null);
+}
+
+export type QuaiTx = {
+  hash: string;
+  type: string;
+  etxType?: string;
+  [k: string]: unknown;
+};
 
 export type QuaiBlock = {
   hash: string;
@@ -69,7 +158,8 @@ export type QuaiBlock = {
     timestamp: string;
     [k: string]: unknown;
   };
-  transactions: unknown[];
+  transactions: QuaiTx[];
+  workshares?: unknown[];
   size: string;
 };
 

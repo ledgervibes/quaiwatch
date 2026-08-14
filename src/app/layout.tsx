@@ -52,6 +52,7 @@ function Header() {
           <NavLink href="/">Dashboard</NavLink>
           <NavLink href="/wallet">Wallet</NavLink>
           <NavLink href="/tokens">Tokens</NavLink>
+          <NavLink href="/analytics">Analytics</NavLink>
           <NavLink href="/richlist">Rich List</NavLink>
           <a
             href="/settings"

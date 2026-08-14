@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v3.0** — Phase 3 complete.
+Current release: **v4.0** — Phase 4 complete.
 
 QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done → vN.0). This file is kept in sync with `src/lib/roadmap.ts`, the single source of truth used by the app.
 
@@ -25,7 +25,7 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 - Alerts for QUAI (from 1 QUAI) and all QRC-20 transfers
 - Miner block rewards (coinbase) ignored
 
-## Phase 4 — Deeper analytics
+## ✅ Phase 4 — Deeper analytics
 
 - Miner analytics (block distribution, hashrate share)
 - ETX composition breakdown (coinbase / cross-shard / conversion mix)

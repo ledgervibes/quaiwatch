@@ -34,6 +34,8 @@ Cloudflare Web Analytics (privacy-first, cookieless).
 - **Token discovery** — every QRC-20 token on the network with holders and
   supply.
 - **Rich list** — top native QUAI holders.
+- **Analytics** — mining distribution, network composition (ETX), and
+  workshares, plus per-token holder distribution (top 50).
 - **Telegram alert bot** — [@QuaiWatchAlertBot](https://t.me/QuaiWatchAlertBot)
   sends real-time alerts when QUAI (from 1 QUAI) or any QRC-20 token moves in or
   out of your watched wallets. Miner rewards (coinbase) are ignored.
@@ -41,7 +43,7 @@ Cloudflare Web Analytics (privacy-first, cookieless).
 
 ## Roadmap
 
-QuaiWatch ships in phases — currently **v3.0** (Phase 3 complete). See
+QuaiWatch ships in phases — currently **v4.0** (Phase 4 complete). See
 [ROADMAP.md](ROADMAP.md) for the full plan.
 
 ## Technical notes
