@@ -173,6 +173,10 @@ export function getTokens(params?: PageParams, signal?: AbortSignal): Promise<Pa
   return getV2<Paginated<TokenInfo>>(withParams("/tokens?type=ERC-20", params), signal);
 }
 
+export function getToken(tokenAddress: string, signal?: AbortSignal): Promise<TokenInfo> {
+  return getV2<TokenInfo>(`/tokens/${tokenAddress}`, signal);
+}
+
 // ---------- Token holders (Phase 4: holder distribution) ----------
 
 export type TokenHolder = {
@@ -187,4 +191,41 @@ export function getTokenHolders(
   signal?: AbortSignal,
 ): Promise<Paginated<TokenHolder>> {
   return getV2<Paginated<TokenHolder>>(`/tokens/${tokenAddress}/holders`, signal);
+}
+
+// ---------- Token activity (Phase 5: WQI tracking) ----------
+
+export type TokenTransfer = {
+  block_hash: string;
+  log_index: string;
+  timestamp: string | null;
+  tx_hash: string;
+  type: "token_transfer" | "token_minting" | "token_burning" | string;
+  from: AddressRef;
+  to: AddressRef;
+  total: { decimals: number; value: string };
+  token: TokenInfo;
+};
+
+export type TokenCounters = {
+  token_holders_count: string;
+  transfers_count: string;
+};
+
+export function getTokenTransfers(
+  tokenAddress: string,
+  params?: PageParams,
+  signal?: AbortSignal,
+): Promise<Paginated<TokenTransfer>> {
+  return getV2<Paginated<TokenTransfer>>(
+    withParams(`/tokens/${tokenAddress}/transfers`, params),
+    signal,
+  );
+}
+
+export function getTokenCounters(
+  tokenAddress: string,
+  signal?: AbortSignal,
+): Promise<TokenCounters> {
+  return getV2<TokenCounters>(`/tokens/${tokenAddress}/counters`, signal);
 }

@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v4.0** — Phase 4 complete.
+Current release: **v6.0** — Phase 6 complete.
 
 QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done → vN.0). This file is kept in sync with `src/lib/roadmap.ts`, the single source of truth used by the app.
 
@@ -31,15 +31,17 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 - ETX composition breakdown (coinbase / cross-shard / conversion mix)
 - Token holder distribution (top 50 holders)
 
-## Phase 5 — Wrapped Qi (WQI) tracking
+## ✅ Phase 5 — Wrapped Qi (WQI) tracking
 
-- WQI holders, transfers, and activity — the Qi ↔ Quai-ledger flow
+- WQI supply and holder distribution
+- WQI transfer, mint, and burn activity
+- Contract and transaction links to Quaiscan
 
-## Phase 6 — DeFi & SOAP analytics
+## ✅ Phase 6 — DeFi & SOAP analytics
 
 - DEX TVL tracking
 - QRC-20 prices derived from pool reserves
-- SOAP buyback history
+- SOAP buyback & burn history
 
 ## Phase 7 — Wallet connect & public API
 

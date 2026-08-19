@@ -19,6 +19,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# local browser audit artifacts
+/.playwright-mcp/
+
 # env
 .env
 .env*.local

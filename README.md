@@ -36,6 +36,10 @@ Cloudflare Web Analytics (privacy-first, cookieless).
 - **Rich list** — top native QUAI holders.
 - **Analytics** — mining distribution, network composition (ETX), and
   workshares, plus per-token holder distribution (top 50).
+- **Wrapped Qi tracking** — WQI supply, holder distribution, and transfer
+  activity including mint and burn events.
+- **DeFi & SOAP** — DEX liquidity pools, QRC-20 prices derived from WQUAI pool
+  reserves, total TVL, and SOAP buyback-and-burn history.
 - **Telegram alert bot** — [@QuaiWatchAlertBot](https://t.me/QuaiWatchAlertBot)
   sends real-time alerts when QUAI (from 1 QUAI) or any QRC-20 token moves in or
   out of your watched wallets. Miner rewards (coinbase) are ignored.
@@ -43,7 +47,7 @@ Cloudflare Web Analytics (privacy-first, cookieless).
 
 ## Roadmap
 
-QuaiWatch ships in phases — currently **v4.0** (Phase 4 complete). See
+QuaiWatch ships in phases — currently **v6.0** (Phase 6 complete). See
 [ROADMAP.md](ROADMAP.md) for the full plan.
 
 ## Technical notes
@@ -57,8 +61,9 @@ QuaiWatch ships in phases — currently **v4.0** (Phase 4 complete). See
   the `quais` SDK (`formatQi`) rather than the docs — assume 18 and every Qi
   amount is off by 10^15. See `src/lib/quai.ts`.
 - **QRC-20 prices**: Quaiscan returns no price data for tokens
-  (`exchange_rate` is always null), and no free source exists. The UI shows
-  token amounts without USD value.
+  (`exchange_rate` is always null), and no free market source exists. Where a
+  token has a WQUAI liquidity pool, QuaiWatch derives its price from the pool
+  reserves on the DeFi page. Tokens without a pool show amounts only.
 - **`quais` SDK**: currently alpha (`1.0.0-alpha.56`). It's pinned to an exact
   version and isolated in `src/lib/quai.ts` so a breaking change only touches
   one file.

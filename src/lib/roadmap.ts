@@ -59,17 +59,17 @@ export const PHASES: Phase[] = [
   {
     n: 5,
     title: "Wrapped Qi (WQI) tracking",
-    done: false,
-    items: ["WQI holders, transfers, and activity"],
+    done: true,
+    items: ["WQI supply and holders", "WQI transfers, mint, and burn activity"],
   },
   {
     n: 6,
     title: "DeFi & SOAP analytics",
-    done: false,
+    done: true,
     items: [
       "DEX TVL tracking",
       "QRC-20 prices from pool reserves",
-      "SOAP buyback history",
+      "SOAP buyback & burn history",
     ],
   },
   {

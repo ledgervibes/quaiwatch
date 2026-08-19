@@ -66,6 +66,28 @@ export const NATIVE = {
 /** CoinGecko ID for the QUAI price (free, no API key). Qi is NOT on CoinGecko. */
 export const COINGECKO_QUAI_ID = "quai-network";
 
+/** Official Wrapped Qi token currently indexed on Cyprus-1. */
+export const WQI = {
+  address: "0x002b2596EcF05C93a31ff916E8b456DF6C77c750",
+  symbol: "WQI",
+  name: "Wrapped Qi",
+  decimals: 18,
+} as const;
+
+/**
+ * Wrapped Quai (WQUAI) — the base/quote asset for every DEX pair on Cyprus-1.
+ * Verified on-chain: all Uniswap-V2 pairs sampled pair token X against WQUAI,
+ * so token prices are derived from the WQUAI-side reserve (WQUAI ≈ 1 QUAI).
+ * Address is lowercased for direct comparison against RPC token0/token1 output.
+ */
+export const WQUAI = {
+  address: "0x006C3e2AaAE5DB1bCd11A1a097cE572312EADdBB",
+  addressLower: "0x006c3e2aaae5db1bcd11a1a097ce572312eaddbb",
+  symbol: "WQUAI",
+  name: "Wrapped Quai",
+  decimals: 18,
+} as const;
+
 /**
  * Support info & social links. Displayed on the Settings page & footer.
  *
@@ -80,5 +102,9 @@ export const SUPPORT = {
   githubUrl: "https://github.com/ledgervibes/quaiwatch",
 } as const;
 
-/** SOAP burn address (buyback from external merged-mining). Used in Phase 6. */
+/**
+ * SOAP burn address (buyback-and-burn from external merged-mining subsidies).
+ * Verified on-chain: holds a large QUAI balance and receives QUAI transactions
+ * (152+ txs). 100% of purchased QUAI is burned here. See lib/defi.ts.
+ */
 export const SOAP_BURN_ADDRESS = "0x0050AF0000000000000000000000000000000000";
