@@ -8,7 +8,7 @@ import {
   type ExplorerMiningSummary,
 } from "@/lib/explorer";
 import { getRecentBlocks, type QuaiBlock } from "@/lib/quai";
-import { shortAddress, thousands, compactNumber } from "@/lib/format";
+import { shortAddress, thousands, compactNumber, formatHashrate } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
 
 /**
@@ -239,19 +239,6 @@ export function MinerStats() {
 }
 
 /** Format a raw hash/s figure with an SI suffix (H/s → PH/s). */
-function formatHashrate(raw: string): string {
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value <= 0) return "-";
-  const units = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
-  let scaled = value;
-  let unit = 0;
-  while (scaled >= 1000 && unit < units.length - 1) {
-    scaled /= 1000;
-    unit++;
-  }
-  return `${scaled.toFixed(scaled < 10 ? 2 : 1)} ${units[unit]}`;
-}
-
 function HashrateCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800">

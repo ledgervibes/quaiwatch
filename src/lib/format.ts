@@ -62,6 +62,20 @@ export function tokenAmount(value: number, maxFrac = 4): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
 }
 
+/** Format a raw hash/s figure with an SI suffix (H/s → PH/s). */
+export function formatHashrate(raw: string | number): string {
+  const value = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return "-";
+  const units = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
+  let scaled = value;
+  let unit = 0;
+  while (scaled >= 1000 && unit < units.length - 1) {
+    scaled /= 1000;
+    unit++;
+  }
+  return `${scaled.toFixed(scaled < 10 ? 2 : 1)} ${units[unit]}`;
+}
+
 /** Trim a decimal string to N significant digits without coarse rounding. */
 export function trimDecimals(v: string, maxFrac = 4): string {
   if (!v.includes(".")) return v;

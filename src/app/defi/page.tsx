@@ -1,4 +1,5 @@
 import { DefiAnalytics } from "@/components/DefiAnalytics";
+import { SoapParticipation } from "@/components/SoapParticipation";
 
 export default function DefiPage() {
   return (
@@ -9,6 +10,7 @@ export default function DefiPage() {
           DEX liquidity, token prices from pool reserves, and SOAP buyback-and-burn on Cyprus-1.
         </p>
       </div>
+      <SoapParticipation />
       <DefiAnalytics />
     </div>
   );
