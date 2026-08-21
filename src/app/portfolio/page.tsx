@@ -1,13 +1,15 @@
-import { PortfolioTracker } from "@/components/PortfolioTracker";
+import { PortfolioView } from "@/components/PortfolioView";
 
 export default function PortfolioPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div>
         <h1 className="text-xl font-bold">Portfolio</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Connect Pelagus and inspect your Quai holdings without signing a transaction.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Balances, token holdings, and transactions for any Quai address — or your own via Pelagus.
+        </p>
       </div>
-      <PortfolioTracker />
+      <PortfolioView />
     </div>
   );
 }

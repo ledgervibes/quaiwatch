@@ -27,8 +27,10 @@ Cloudflare Web Analytics (privacy-first, cookieless).
 - **QUAI & Qi prices** — QUAI from CoinGecko; Qi derived on-chain from the
   protocol's own `quai_qiToQuai` conversion rate, since Qi isn't listed on any
   market data provider.
-- **Wallet explorer** — search any address for its QUAI balance, all QRC-20
-  token holdings, and full transaction history.
+- **Portfolio** — one page for any address: search a `0x…` address, or connect
+  Pelagus read-only to load your own. Shows QUAI, Qi, locked balances, USD value,
+  token holdings, and paginated transaction history. A transaction signature is
+  never requested.
 - **Live transaction feed** — recent transactions with type filters
   (native / contract / coinbase).
 - **Token discovery** — every QRC-20 token on the network with holders and
@@ -40,9 +42,6 @@ Cloudflare Web Analytics (privacy-first, cookieless).
   activity including mint and burn events.
 - **DeFi & SOAP** — official Quainance pools, TVL, 24h volume and estimated fees
   as reported by the Quai Explorer, plus SOAP buyback-and-burn history.
-- **Portfolio (Pelagus)** — connect the Pelagus wallet read-only to see QUAI, Qi,
-  locked balances, token holdings, and recent transactions. A transaction
-  signature is never requested.
 - **Telegram alert bot** — [@QuaiWatchAlertBot](https://t.me/QuaiWatchAlertBot)
   sends real-time alerts when QUAI (from 1 QUAI) or any QRC-20 token moves in or
   out of your watched wallets. Miner rewards (coinbase) are ignored.

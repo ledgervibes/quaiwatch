@@ -47,6 +47,21 @@ export function pct(n: number): string {
   return `${sign}${n.toFixed(2)}%`;
 }
 
+/**
+ * Format a native-token amount for display, never in scientific notation.
+ *
+ * Raw wei converted to QUAI can be extremely small (1 wei = 1e-18 QUAI), and
+ * `String(1e-18)` yields "1e-18", which leaks into the UI. Anything below the
+ * visible precision is rendered as a "<" bound instead.
+ */
+export function tokenAmount(value: number, maxFrac = 4): string {
+  if (!isFinite(value)) return "-";
+  if (value === 0) return "0";
+  const min = 10 ** -maxFrac;
+  if (Math.abs(value) < min) return `<${min.toFixed(maxFrac)}`;
+  return value.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
+}
+
 /** Trim a decimal string to N significant digits without coarse rounding. */
 export function trimDecimals(v: string, maxFrac = 4): string {
   if (!v.includes(".")) return v;

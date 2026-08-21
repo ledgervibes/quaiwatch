@@ -9,7 +9,8 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 ## ✅ Phase 1 — Core dashboard
 
 - Network stats (block height, TPS, gas, addresses, transactions, utilization)
-- Wallet explorer (QUAI balance + all QRC-20 holdings + transaction history)
+- Address lookup — QUAI/Qi balances, QRC-20 holdings, transaction history
+  (now part of the Portfolio page; `/wallet` redirects there)
 - Live transaction feed
 - Token discovery (all QRC-20 tokens)
 - Rich list (top native QUAI holders)
@@ -48,10 +49,11 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 - Pelagus wallet connection (read-only, chain ID validated; transaction signing
   is intentionally never requested)
-- Portfolio tracker — QUAI, Qi, locked balances, and token holdings from the
-  official Quai Explorer, reached through a same-origin Cloudflare Pages Function
-  proxy because the explorer host sends no CORS headers
-- Transaction history from the explorer's Etherscan-compatible surface, which
+- Portfolio — one page for any address: search a `0x…` address or connect
+  Pelagus. QUAI, Qi, locked balances, USD value, token holdings, and paginated
+  transaction history, from the official Quai Explorer via a same-origin
+  Cloudflare Pages Function proxy (the explorer host sends no CORS headers)
+- Transaction history uses the explorer's Etherscan-compatible surface, which
   answers in under 2s where the native per-address feed 503s for low-activity
   wallets; it loads in its own lane so it never blocks balances
 - Read-only public API at `/api/v1/*` (`network`, `portfolio/{address}`, `defi`,

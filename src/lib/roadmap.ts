@@ -23,7 +23,7 @@ export const PHASES: Phase[] = [
     done: true,
     items: [
       "Network stats",
-      "Wallet explorer (QUAI + all QRC-20)",
+      "Address lookup (QUAI/Qi balances, QRC-20 holdings, transactions)",
       "Live transaction feed",
       "Token discovery",
       "Rich list",
@@ -78,7 +78,7 @@ export const PHASES: Phase[] = [
     done: true,
     items: [
       "Pelagus connect (read-only, chain-ID validated)",
-      "Portfolio tracker (explorer balances + fast transaction history)",
+      "Portfolio — search any address or connect Pelagus",
       "Read-only public API (/api/v1/*)",
     ],
   },

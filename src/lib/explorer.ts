@@ -172,10 +172,17 @@ type EtherscanEnvelope<T> = { status: string; message: string; result: T };
  * personal wallet. WHY NOT Quaiscan: measured 23-73s for the same data, and its
  * v1 txlist returned 522/timeout. This surface answers in well under 2s for
  * every address tested, including the ones the native endpoint 503s on.
+ *
+ * Cross-checked against Quaiscan v2 for the same address: identical block
+ * numbers, hashes, and values for the 10 most recent transactions.
+ *
+ * `page` is 1-based and verified to work for deep paging (page 2 and 3 return
+ * older, non-overlapping rows).
  */
 export async function getExplorerAddressTxList(
   address: string,
   limit = 15,
+  page = 1,
   options?: FetchOptions,
 ): Promise<ExplorerTxListItem[]> {
   const params = new URLSearchParams({
@@ -183,7 +190,7 @@ export async function getExplorerAddressTxList(
     action: "txlist",
     address,
     sort: "desc",
-    page: "1",
+    page: String(page),
     offset: String(limit),
   });
   const envelope = await get<EtherscanEnvelope<ExplorerTxListItem[] | string>>(

@@ -1,0 +1,13 @@
+/*
+  Cloudflare Pages redirects.
+
+  /wallet was merged into /portfolio: both showed "the contents of an address",
+  differing only in how the address arrived (paste vs Pelagus). The single page
+  supports both, so old links are redirected instead of broken.
+
+  Next.js `redirects` in next.config.ts do not apply to `output: "export"`, so the
+  redirect lives here. This file is copied into the export output by the build
+  script and read by Pages at the edge.
+*/
+/wallet    /portfolio  301
+/wallet/   /portfolio  301
