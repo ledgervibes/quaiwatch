@@ -75,10 +75,10 @@ export const PHASES: Phase[] = [
   {
     n: 7,
     title: "Wallet connect & public API",
-    done: false,
+    done: true,
     items: [
       "Pelagus connect (read-only, chain-ID validated)",
-      "Portfolio tracker (explorer balances + Quaiscan history fallback)",
+      "Portfolio tracker (explorer balances + fast transaction history)",
       "Read-only public API (/api/v1/*)",
     ],
   },

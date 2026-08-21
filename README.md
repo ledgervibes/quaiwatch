@@ -40,9 +40,14 @@ Cloudflare Web Analytics (privacy-first, cookieless).
   activity including mint and burn events.
 - **DeFi & SOAP** — official Quainance pools, TVL, 24h volume and estimated fees
   as reported by the Quai Explorer, plus SOAP buyback-and-burn history.
+- **Portfolio (Pelagus)** — connect the Pelagus wallet read-only to see QUAI, Qi,
+  locked balances, token holdings, and recent transactions. A transaction
+  signature is never requested.
 - **Telegram alert bot** — [@QuaiWatchAlertBot](https://t.me/QuaiWatchAlertBot)
   sends real-time alerts when QUAI (from 1 QUAI) or any QRC-20 token moves in or
   out of your watched wallets. Miner rewards (coinbase) are ignored.
+- **Public API** — free, read-only, normalized JSON for other developers. See
+  below.
 - **Dark / light mode.**
 
 ## Public API
@@ -91,7 +96,7 @@ through unchanged rather than hiding or guessing at them.
 
 ## Roadmap
 
-QuaiWatch ships in phases — currently **v6.0** (Phase 6 complete). See
+QuaiWatch ships in phases — currently **v7.0** (all seven phases complete). See
 [ROADMAP.md](ROADMAP.md) for the full plan.
 
 ## Technical notes

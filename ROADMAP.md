@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v6.0** — Phase 6 complete, Phase 7 in progress.
+Current release: **v7.0** — all seven phases complete.
 
 QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done → vN.0). This file is kept in sync with `src/lib/roadmap.ts`, the single source of truth used by the app.
 
@@ -44,23 +44,18 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 - QRC-20 prices in QUAI derived from Quainance WQUAI reserves
 - SOAP buyback & burn history
 
-## 🚧 Phase 7 — Wallet connect & public API
+## ✅ Phase 7 — Wallet connect & public API
 
-- Pelagus wallet connection
-- Portfolio tracker
-- Read-only public API for other developers
-
-### Phase 7 progress
-
-- Pelagus read-only connection and chain ID validation
-- Official Quai Explorer indexed portfolio data, reached through a same-origin
-  Cloudflare Pages Function proxy (the explorer host sends no CORS headers)
-- QUAI, Qi, and token holdings view; transaction history read from the
-  explorer's Etherscan-compatible surface, which answers in under 2s where the
-  native per-address feed 503s and Quaiscan takes 23–73s
-- Read-only public API at `/api/v1/*` (`network`, `portfolio/{address}`,
-  `defi`, `conversions`) — normalized, edge-cached, CORS-open, no API key
-- Transaction signing is intentionally not requested
+- Pelagus wallet connection (read-only, chain ID validated; transaction signing
+  is intentionally never requested)
+- Portfolio tracker — QUAI, Qi, locked balances, and token holdings from the
+  official Quai Explorer, reached through a same-origin Cloudflare Pages Function
+  proxy because the explorer host sends no CORS headers
+- Transaction history from the explorer's Etherscan-compatible surface, which
+  answers in under 2s where the native per-address feed 503s for low-activity
+  wallets; it loads in its own lane so it never blocks balances
+- Read-only public API at `/api/v1/*` (`network`, `portfolio/{address}`, `defi`,
+  `conversions`) — normalized, edge-cached, CORS-open, no API key, rate limited
 
 ---
 
@@ -73,4 +68,4 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 ---
 
-Phases 3–7 are planned directions, not commitments to a schedule. Everything is built on a 100% free stack (public Quai RPC, Quaiscan, Cloudflare).
+All seven phases are shipped. Everything is built on a 100% free stack: public Quai RPC, the official Quai Explorer, Quaiscan, and Cloudflare.

@@ -1,6 +1,6 @@
 {
   "name": "quaiwatch",
-  "version": "6.0.0",
+  "version": "7.0.0",
   "private": true,
   "description": "Never Miss a Move on Quai. Analytics dashboard for Quai Network.",
   "scripts": {
