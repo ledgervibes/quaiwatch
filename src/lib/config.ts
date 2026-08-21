@@ -27,11 +27,24 @@ export const CHAIN_ID = 9;
 
 /**
  * Quaiscan base (Blockscout v6.3.0). CORS "*", so it can be called directly
- * from the browser without a proxy. Has API v2 (primary) and v1 etherscan-compatible (fallback).
+ * from the browser without a proxy. QUAISCAN_BASE is also used for explorer UI
+ * links (href), not just API calls.
  */
 export const QUAISCAN_BASE = "https://quaiscan.io";
 export const QUAISCAN_API_V2 = `${QUAISCAN_BASE}/api/v2`;
-export const QUAISCAN_API_V1 = `${QUAISCAN_BASE}/api`;
+
+/**
+ * Official Quai Explorer indexed API.
+ *
+ * The explorer host (https://explorer.qu.ai) does NOT send CORS headers, so the
+ * browser cannot call it directly. All browser access goes through QuaiWatch's
+ * own same-origin proxy (a Cloudflare Pages Function at /api/explorer/*), which
+ * fetches the explorer server-side and adds edge caching. See
+ * functions/api/explorer/[[path]].ts.
+ *
+ * Kept separate from Quaiscan until full migration is proven.
+ */
+export const QUAI_EXPLORER_PROXY = "/api/explorer";
 
 export const ZONES: ZoneConfig[] = [
   {
@@ -75,10 +88,9 @@ export const WQI = {
 } as const;
 
 /**
- * Wrapped Quai (WQUAI) — the base/quote asset for every DEX pair on Cyprus-1.
- * Verified on-chain: all Uniswap-V2 pairs sampled pair token X against WQUAI,
- * so token prices are derived from the WQUAI-side reserve (WQUAI ≈ 1 QUAI).
- * Address is lowercased for direct comparison against RPC token0/token1 output.
+ * Wrapped Quai (WQUAI) — the QUAI-denominated base asset for DEX pairs on
+ * Cyprus-1. Token prices are derived from the WQUAI-side reserve (WQUAI ≈ 1 QUAI).
+ * Address is lowercased for direct comparison against explorer/RPC output.
  */
 export const WQUAI = {
   address: "0x006C3e2AaAE5DB1bCd11A1a097cE572312EADdBB",

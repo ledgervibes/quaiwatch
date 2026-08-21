@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v6.0** — Phase 6 complete.
+Current release: **v6.0** — Phase 6 complete, Phase 7 in progress.
 
 QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done → vN.0). This file is kept in sync with `src/lib/roadmap.ts`, the single source of truth used by the app.
 
@@ -39,15 +39,28 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 ## ✅ Phase 6 — DeFi & SOAP analytics
 
-- DEX TVL tracking
-- QRC-20 prices derived from pool reserves
+- DEX TVL, 24h volume, and estimated fees for the official Quainance pools,
+  as reported by the Quai Explorer
+- QRC-20 prices in QUAI derived from Quainance WQUAI reserves
 - SOAP buyback & burn history
 
-## Phase 7 — Wallet connect & public API
+## 🚧 Phase 7 — Wallet connect & public API
 
 - Pelagus wallet connection
 - Portfolio tracker
 - Read-only public API for other developers
+
+### Phase 7 progress
+
+- Pelagus read-only connection and chain ID validation
+- Official Quai Explorer indexed portfolio data, reached through a same-origin
+  Cloudflare Pages Function proxy (the explorer host sends no CORS headers)
+- QUAI, Qi, and token holdings view; transaction history read from the
+  explorer's Etherscan-compatible surface, which answers in under 2s where the
+  native per-address feed 503s and Quaiscan takes 23–73s
+- Read-only public API at `/api/v1/*` (`network`, `portfolio/{address}`,
+  `defi`, `conversions`) — normalized, edge-cached, CORS-open, no API key
+- Transaction signing is intentionally not requested
 
 ---
 
@@ -57,9 +70,6 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
   (`quai_listRunningChains → [[0,0]]`). A 12-block scan showed 188/188 ETXs are
   coinbase, with zero cross-shard transfers. Will be added once the network
   expands to more zones; the data layer is already multi-zone-ready.
-- **Quai ↔ Qi conversion monitoring** — protocol conversions (ETX subtype 2)
-  are not yet visible in sampled blocks. Will be added once conversion activity
-  appears on-chain.
 
 ---
 

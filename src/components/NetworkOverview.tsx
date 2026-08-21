@@ -24,9 +24,14 @@ export function NetworkOverview() {
 
   useEffect(() => {
     let alive = true;
+    // Guard against overlapping runs: the 15s interval must not stack requests
+    // if an upstream stalls for longer than the interval.
+    let inFlight = false;
     const ctrl = new AbortController();
 
     async function load() {
+      if (inFlight) return;
+      inFlight = true;
       try {
         const [s, b, g] = await Promise.all([
           getStats(ctrl.signal),
@@ -47,6 +52,8 @@ export function NetworkOverview() {
         if (alive) setPrices(p);
       } catch {
         /* ignore: price is optional */
+      } finally {
+        inFlight = false;
       }
     }
 

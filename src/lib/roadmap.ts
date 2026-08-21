@@ -67,8 +67,8 @@ export const PHASES: Phase[] = [
     title: "DeFi & SOAP analytics",
     done: true,
     items: [
-      "DEX TVL tracking",
-      "QRC-20 prices from pool reserves",
+      "Quainance TVL, 24h volume, and estimated fees (official Quai Explorer data)",
+      "QRC-20 prices from Quainance WQUAI reserves",
       "SOAP buyback & burn history",
     ],
   },
@@ -76,7 +76,11 @@ export const PHASES: Phase[] = [
     n: 7,
     title: "Wallet connect & public API",
     done: false,
-    items: ["Pelagus connect", "Portfolio tracker", "Read-only public API"],
+    items: [
+      "Pelagus connect (read-only, chain-ID validated)",
+      "Portfolio tracker (explorer balances + Quaiscan history fallback)",
+      "Read-only public API (/api/v1/*)",
+    ],
   },
 ];
 

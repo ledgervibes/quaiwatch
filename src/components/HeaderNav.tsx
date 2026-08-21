@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-const PRIMARY = [["/", "Dashboard"], ["/wallet", "Wallet"], ["/tokens", "Tokens"], ["/analytics", "Analytics"]] as const;
+const PRIMARY = [["/", "Dashboard"], ["/portfolio", "Portfolio"], ["/wallet", "Wallet"], ["/tokens", "Tokens"], ["/analytics", "Analytics"]] as const;
 const EXPLORE = [["/wqi", "WQI"], ["/defi", "DeFi"], ["/richlist", "Rich List"]] as const;
 
 export function HeaderNav() {

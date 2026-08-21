@@ -1,204 +1,140 @@
 /**
- * lib/defi.ts — Phase 6 DeFi & SOAP analytics (100% free: public RPC + Quaiscan).
+ * lib/defi.ts — Phase 6 DeFi & SOAP analytics (100% free, official Quai sources only).
  *
- * DEX MODEL (verified on-chain, Cyprus-1):
- *   All Uniswap-V2 style pairs discovered on Quaiscan (symbol "UNI-V2") pair a
- *   token against WQUAI (Wrapped Quai). We read `getReserves()`, `token0()`,
- *   `token1()` directly via quai_call and derive:
- *     - Pool TVL in QUAI = 2 × WQUAI-side reserve (both sides are ~equal value in a
- *       constant-product AMM, so total value ≈ 2× the QUAI side).
- *     - Token price in QUAI = (WQUAI reserve / token reserve), decimals-adjusted.
- *   USD values require the live QUAI/USD price (passed in from lib/price.ts).
+ * DATA SOURCE — OFFICIAL EXPLORER, NOT LOCAL DERIVATION:
+ *   DEX figures come from the official Quai Explorer's TVL endpoint
+ *   (`GET /api/stats/tvl`, proxied same-origin), which publishes the numbers Quai
+ *   itself shows on its TVL & DeFi page. It attributes them to the Quainance
+ *   factory (`source.id: "quainance"`, `source.kind: "subgraph"`) and returns
+ *   per-pool TVL, 24h volume, estimated fees, and decimal-adjusted reserves.
+ *
+ * WHY THIS REPLACED THE LOCAL POOL SCAN:
+ *   The earlier implementation discovered pools by scanning the token registry
+ *   for the LP symbol "UNI-V2", then priced them from raw reserves via RPC. Two
+ *   problems, both verified live:
+ *     1. Every "UNI-V2" token on Cyprus-1 belongs to an unrelated Uniswap-V2
+ *        deployment (factory 0x0006112e...bc57a9, 18 pairs). Quainance LP tokens
+ *        are "QNCE-V2" and were never matched. QuaiWatch was reporting ~$75.8k
+ *        TVL from third-party pools while the official figure was ~$10.5k.
+ *     2. Discovery depended on Quaiscan's /tokens feed, which stops after ~51
+ *        tokens, so results were incomplete regardless.
+ *   Reading the explorer directly removes both the wrong-source risk and ~46 RPC
+ *   calls per page load, and guarantees QuaiWatch agrees with Quai's own site.
+ *
+ * TOKEN PRICES:
+ *   Derived from each pool's WQUAI-side reserve (WQUAI ≈ 1 QUAI) using the
+ *   explorer's decimal-adjusted reserves. Pools not paired against WQUAI (e.g.
+ *   WQI/USDT) carry no QUAI-denominated price and are reported without one.
  *
  * SOAP:
  *   100% of merge-mining subsidies buy QUAI which is burned at SOAP_BURN_ADDRESS.
- *   We read the burn address' native QUAI balance (cumulative buy-and-burn holding)
- *   and its inbound transaction history from Quaiscan — no paid API.
- *
- * All raw amounts stay as bigint until the final display conversion.
+ *   We read the burn address' native QUAI balance (cumulative buy-and-burn
+ *   holding) and its inbound transaction history — no paid API.
  */
 
 import { WQUAI, SOAP_BURN_ADDRESS } from "./config";
-import { rpcBatch, formatQuaiAmount, hexToBigInt } from "./quai";
+import { formatQuaiAmount, hexToBigInt } from "./quai";
+import { getExplorerTvl, explorerNumber, type ExplorerTvlPool } from "./explorer";
 import {
-  getToken,
-  getTokens,
   getAddress,
   getAddressTxs,
-  type TokenInfo,
   type Tx,
   type PageParams,
   type Paginated,
 } from "./quaiscan";
 
-// Uniswap-V2 function selectors (keccak256 of the signature, first 4 bytes).
-const SELECTOR = {
-  token0: "0x0dfe1681",
-  token1: "0xd21220a7",
-  getReserves: "0x0902f1ac",
-} as const;
-
-/** A DEX liquidity pool paired against WQUAI. */
+/** A Quainance liquidity pool, as published by the official explorer. */
 export type Pool = {
-  /** Pair (LP token) contract address. */
+  /** Pair contract address. */
   pair: string;
-  /** The non-WQUAI token in the pair. */
-  token: TokenInfo;
-  /** Raw reserve of `token` (its own decimals). */
-  tokenReserve: bigint;
-  /** Raw reserve of WQUAI (18 decimals). */
-  wquaiReserve: bigint;
-  /** Price of 1 `token` in QUAI, decimals-adjusted. */
-  priceInQuai: number;
-  /** Pool TVL in QUAI (≈ 2× the WQUAI reserve). */
-  tvlQuai: number;
+  /** Human-readable pair name from the explorer, e.g. "USDT/WQUAI". */
+  name: string;
+  /** The non-WQUAI token of the pair (or token0 when neither side is WQUAI). */
+  token: { address: string; symbol: string };
+  /** Price of 1 `token` in QUAI. Null when the pool is not WQUAI-paired. */
+  priceInQuai: number | null;
+  /** Pool TVL in USD, straight from the explorer. */
+  tvlUsd: number;
+  /** 24h traded volume in USD. */
+  volume24hUsd: number;
+  /** Estimated 24h fees in USD (explorer flags these as estimates). */
+  estimatedFees24hUsd: number;
+  /** Lifetime transaction count for the pool. */
+  txCount: number;
 };
 
-const HEX_WORD = 64; // 32 bytes = 64 hex chars
+/** Aggregate DEX statistics, straight from the official explorer. */
+export type DexStats = {
+  pools: Pool[];
+  tvlUsd: number;
+  totalVolumeUsd: number;
+  volume24hUsd: number;
+  estimatedFees24hUsd: number;
+  pairCount: number;
+  txCount: number;
+  /** Which factory / indexer the explorer attributes these figures to. */
+  sourceId: string;
+  factoryAddress: string;
+  /** True when the explorer considers its own snapshot stale. */
+  stale: boolean;
+  observedAt: string;
+};
 
-/** Extract an address from a 32-byte ABI word (last 20 bytes). */
-function addressFromWord(word: string): string {
-  const hex = word.startsWith("0x") ? word.slice(2) : word;
-  return "0x" + hex.slice(-40).toLowerCase();
-}
+/** Derive the token price in QUAI from a pool's WQUAI-side reserve. */
+function priceFromPool(pool: ExplorerTvlPool): {
+  token: { address: string; symbol: string };
+  priceInQuai: number | null;
+} {
+  const isToken0Wquai = pool.token0.address.toLowerCase() === WQUAI.addressLower;
+  const isToken1Wquai = pool.token1.address.toLowerCase() === WQUAI.addressLower;
 
-/**
- * Decode getReserves() output: (uint112 reserve0, uint112 reserve1, uint32 ts).
- * Returns the first two reserves as bigint.
- */
-function decodeReserves(data: string): { reserve0: bigint; reserve1: bigint } {
-  const hex = data.startsWith("0x") ? data.slice(2) : data;
-  const reserve0 = BigInt("0x" + hex.slice(0, HEX_WORD));
-  const reserve1 = BigInt("0x" + hex.slice(HEX_WORD, HEX_WORD * 2));
-  return { reserve0, reserve1 };
-}
+  // Reserves from this endpoint are already decimal-adjusted.
+  const reserve0 = explorerNumber(pool.reserve0);
+  const reserve1 = explorerNumber(pool.reserve1);
 
-type CallReq = { to: string; data: string };
-
-function callReq(to: string, data: string, id: number) {
-  return { method: "quai_call", params: [{ to, data } as CallReq, "latest"], id };
-}
-
-/** All Uniswap-V2 LP pairs are listed on Quaiscan with the symbol "UNI-V2". */
-async function discoverPairAddresses(signal?: AbortSignal): Promise<string[]> {
-  const seen = new Set<string>();
-  let params: PageParams = null;
-  // Cap at 3 pages — there are only a handful of pairs today, this is defensive.
-  for (let page = 0; page < 3; page++) {
-    const res: Paginated<TokenInfo> = await getTokens(params, signal);
-    for (const t of res.items) {
-      if (t.symbol === "UNI-V2") seen.add(t.address);
-    }
-    if (!res.next_page_params) break;
-    params = res.next_page_params;
+  if (isToken1Wquai && reserve0 > 0) {
+    return { token: pool.token0, priceInQuai: reserve1 / reserve0 };
   }
-  return [...seen];
+  if (isToken0Wquai && reserve1 > 0) {
+    return { token: pool.token1, priceInQuai: reserve0 / reserve1 };
+  }
+  // Not WQUAI-paired — no verified QUAI-denominated base to price against.
+  return { token: pool.token0, priceInQuai: null };
 }
 
-/**
- * Build the full pool set: for each pair, read token0/token1/getReserves in one
- * batched RPC call, identify the WQUAI side, resolve the paired token's metadata,
- * and compute price + TVL. Pools whose reserves are zero or that don't include
- * WQUAI are skipped (we only price against the verified WQUAI base asset).
- */
-export async function getPools(signal?: AbortSignal): Promise<Pool[]> {
-  const pairs = await discoverPairAddresses(signal);
-  if (pairs.length === 0) return [];
+/** Official Quainance DEX statistics. */
+export async function getDexStats(signal?: AbortSignal): Promise<DexStats> {
+  const tvl = await getExplorerTvl(7, { signal });
 
-  // One batch: 3 calls per pair.
-  const reqs = pairs.flatMap((pair, i) => [
-    callReq(pair, SELECTOR.token0, i * 3 + 0),
-    callReq(pair, SELECTOR.token1, i * 3 + 1),
-    callReq(pair, SELECTOR.getReserves, i * 3 + 2),
-  ]);
-  const results = await rpcBatch<string>(reqs, undefined, signal);
-
-  type Raw = {
-    pair: string;
-    tokenAddr: string;
-    tokenReserve: bigint;
-    wquaiReserve: bigint;
-  };
-  const raws: Raw[] = [];
-
-  for (let i = 0; i < pairs.length; i++) {
-    const pair = pairs[i];
-    const token0Res = results[i * 3 + 0];
-    const token1Res = results[i * 3 + 1];
-    const reservesRes = results[i * 3 + 2];
-    if (!token0Res || !token1Res || !reservesRes) continue;
-
-    const token0 = addressFromWord(token0Res);
-    const token1 = addressFromWord(token1Res);
-    const { reserve0, reserve1 } = decodeReserves(reservesRes);
-
-    let tokenAddr: string;
-    let tokenReserve: bigint;
-    let wquaiReserve: bigint;
-    if (token0 === WQUAI.addressLower) {
-      wquaiReserve = reserve0;
-      tokenAddr = token1;
-      tokenReserve = reserve1;
-    } else if (token1 === WQUAI.addressLower) {
-      wquaiReserve = reserve1;
-      tokenAddr = token0;
-      tokenReserve = reserve0;
-    } else {
-      continue; // not a WQUAI pair — skip (no verified base to price against)
-    }
-
-    if (wquaiReserve === 0n || tokenReserve === 0n) continue;
-    raws.push({ pair, tokenAddr, tokenReserve, wquaiReserve });
-  }
-
-  // Resolve token metadata (decimals/symbol) for each paired token, in parallel.
-  const tokens = await Promise.all(
-    raws.map((r) =>
-      getToken(r.tokenAddr, signal).catch(() => null),
-    ),
-  );
-
-  const pools: Pool[] = [];
-  for (let i = 0; i < raws.length; i++) {
-    const r = raws[i];
-    const token = tokens[i];
-    if (!token) continue;
-
-    const tokenDecimals = Number(token.decimals || 18);
-    const wquaiHuman = Number(formatQuaiAmount(r.wquaiReserve)); // 18 decimals
-    const tokenHuman = Number(formatUnitsFloat(r.tokenReserve, tokenDecimals));
-
-    // Constant-product AMM: price of token in QUAI = WQUAI reserve / token reserve.
-    const priceInQuai = tokenHuman > 0 ? wquaiHuman / tokenHuman : 0;
-    // Total pool value ≈ 2× the QUAI-denominated side.
-    const tvlQuai = wquaiHuman * 2;
-
-    pools.push({
-      pair: r.pair,
+  const pools: Pool[] = (tvl.pools ?? []).map((pool) => {
+    const { token, priceInQuai } = priceFromPool(pool);
+    return {
+      pair: pool.address,
+      name: pool.name,
       token,
-      tokenReserve: r.tokenReserve,
-      wquaiReserve: r.wquaiReserve,
       priceInQuai,
-      tvlQuai,
-    });
-  }
+      tvlUsd: explorerNumber(pool.tvlUsd),
+      volume24hUsd: explorerNumber(pool.volume24hUsd),
+      estimatedFees24hUsd: explorerNumber(pool.estimatedFees24hUsd),
+      txCount: Number(pool.txCount) || 0,
+    };
+  });
 
-  // Highest TVL first.
-  pools.sort((a, b) => b.tvlQuai - a.tvlQuai);
-  return pools;
-}
+  pools.sort((a, b) => b.tvlUsd - a.tvlUsd);
 
-/** Sum of all pool TVLs, in QUAI. */
-export function totalTvlQuai(pools: Pool[]): number {
-  return pools.reduce((sum, p) => sum + p.tvlQuai, 0);
-}
-
-/** Lightweight float unit formatter (avoids quais dependency for arbitrary decimals). */
-function formatUnitsFloat(raw: bigint, decimals: number): string {
-  const s = raw.toString().padStart(decimals + 1, "0");
-  const int = s.slice(0, s.length - decimals) || "0";
-  const frac = s.slice(s.length - decimals);
-  return `${int}.${frac}`;
+  return {
+    pools,
+    tvlUsd: explorerNumber(tvl.current?.tvlUsd),
+    totalVolumeUsd: explorerNumber(tvl.current?.totalVolumeUsd),
+    volume24hUsd: explorerNumber(tvl.current?.volume24hUsd),
+    estimatedFees24hUsd: explorerNumber(tvl.current?.estimatedFees24hUsd),
+    pairCount: Number(tvl.current?.pairCount) || pools.length,
+    txCount: Number(tvl.current?.txCount) || 0,
+    sourceId: tvl.source?.id ?? "unknown",
+    factoryAddress: tvl.source?.factoryAddress ?? "",
+    stale: tvl.stale ?? false,
+    observedAt: tvl.current?.observedAt ?? tvl.freshness?.observedAt ?? "",
+  };
 }
 
 // ============================================================
@@ -214,7 +150,7 @@ export type SoapStats = {
   txCount: number | null;
 };
 
-/** Read the SOAP burn address' native QUAI balance from Quaiscan. */
+/** Read the SOAP burn address' native QUAI balance. */
 export async function getSoapStats(signal?: AbortSignal): Promise<SoapStats> {
   const addr = await getAddress(SOAP_BURN_ADDRESS, signal);
   const burnedWei = addr.coin_balance ? hexToBigIntSafe(addr.coin_balance) : 0n;

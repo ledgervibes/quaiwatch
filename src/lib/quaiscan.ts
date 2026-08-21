@@ -2,7 +2,11 @@
  * lib/quaiscan.ts — Quaiscan API client (Blockscout v6.3.0).
  *
  * CORS "*" has been verified, so it is called directly from the browser (zero backend).
- * API v2 = primary. API v1 (etherscan-compatible) = fallback when v2 errors.
+ *
+ * TIMEOUT: every request carries a default timeout. Quaiscan is normally fast
+ * (~1s across the endpoints used here), but it has been observed to stall for
+ * 20-70s on individual requests. Without a deadline a single stall blocks a whole
+ * `Promise.all`, so a page can hang with data that is already available.
  *
  * PRICE NOTE: the exchange_rate / circulating_market_cap fields are ALWAYS null in
  * Quaiscan for QRC-20 tokens (checked the top 50 tokens: 0 have a price).
@@ -11,13 +15,33 @@
 
 import { QUAISCAN_API_V2 } from "./config";
 
-async function getV2<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${QUAISCAN_API_V2}${path}`, {
-    headers: { Accept: "application/json" },
-    signal,
-  });
-  if (!res.ok) throw new Error(`Quaiscan ${path} HTTP ${res.status}`);
-  return (await res.json()) as T;
+/** Default deadline for a Quaiscan request. */
+const DEFAULT_TIMEOUT_MS = 20_000;
+
+async function getV2<T>(path: string, signal?: AbortSignal, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+  // Combine the caller's signal with our own deadline.
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`${QUAISCAN_API_V2}${path}`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Quaiscan ${path} HTTP ${res.status}`);
+    return (await res.json()) as T;
+  } catch (cause) {
+    // Distinguish our deadline from a caller-initiated cancellation.
+    if (controller.signal.aborted && !signal?.aborted) {
+      throw new Error(`Quaiscan ${path} timed out after ${timeoutMs / 1000}s`);
+    }
+    throw cause;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 /** Blockscout pagination parameters (next_page_params) → query string. */
@@ -55,11 +79,6 @@ export function getStats(signal?: AbortSignal): Promise<NetworkStats> {
   return getV2<NetworkStats>("/stats", signal);
 }
 
-export type TxChartPoint = { date: string; tx_count: number };
-export function getTxChart(signal?: AbortSignal): Promise<{ chart_data: TxChartPoint[] }> {
-  return getV2<{ chart_data: TxChartPoint[] }>("/stats/charts/transactions", signal);
-}
-
 // ---------- Transactions ----------
 
 export type AddressRef = {
@@ -87,10 +106,6 @@ export function getMainPageTxs(signal?: AbortSignal): Promise<Tx[]> {
 }
 
 export type Paginated<T> = { items: T[]; next_page_params: Record<string, unknown> | null };
-
-export function getTxs(signal?: AbortSignal): Promise<Paginated<Tx>> {
-  return getV2<Paginated<Tx>>("/transactions", signal);
-}
 
 // ---------- Addresses / Rich list ----------
 
