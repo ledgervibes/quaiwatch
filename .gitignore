@@ -39,3 +39,7 @@ next-env.d.ts
 /FITUR .txt
 /name projek,tagline,deskripsi dan konsep logo .txt
 /backup-*.txt
+
+# local API/UI research dumps (raw explorer snapshots, not source)
+/explorer-*.txt
+/explorer-*.md
