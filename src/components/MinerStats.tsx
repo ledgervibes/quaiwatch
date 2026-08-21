@@ -1,198 +1,263 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  getExplorerHashrate,
+  getExplorerMiningSummary,
+  type ExplorerHashrate,
+  type ExplorerMiningSummary,
+} from "@/lib/explorer";
 import { getRecentBlocks, type QuaiBlock } from "@/lib/quai";
-import { shortAddress } from "@/lib/format";
+import { shortAddress, thousands, compactNumber } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
 
 /**
- * Mining distribution + network composition, computed from recent block
- * headers via a single batch RPC call. See lib/quai.ts:getRecentBlocks.
+ * Mining analytics.
+ *
+ * BLOCK DISTRIBUTION comes from the official explorer's 24h mining summary
+ * (~17k blocks, `truncated: false`), not from a local RPC sample. An earlier
+ * version sampled 50-100 blocks and labelled the result "hashrate share", which
+ * was wrong twice over: a block count is not a hashrate, and 50 blocks out of
+ * ~17,280 per day is too small to be representative.
+ *
+ * HASHRATE is reported separately and is a real hashrate: the explorer reads
+ * `quai_getMiningInfo` (go-quai v0.55) with `observed_share_work` semantics.
+ *
+ * WORKSHARES still come from a local block sample, and the sample size is stated
+ * in the UI, because per-block workshare counts are not in the summary endpoint.
  */
 
-type MinerRow = { address: string; blocks: number; pct: number };
-type Stats = {
-  sampled: number;
-  miners: MinerRow[];
-  coinbaseEtx: number;
-  otherEtx: number;
-  normalTx: number;
-  workshares: number;
-};
+type WorkshareSample = { sampled: number; workshares: number; etxCoinbase: number; etxOther: number };
 
-function computeStats(blocks: QuaiBlock[]): Stats {
-  const minerCount = new Map<string, number>();
-  let coinbaseEtx = 0;
-  let otherEtx = 0;
-  let normalTx = 0;
+const WORKSHARE_SAMPLE_BLOCKS = 50;
+
+function sampleWorkshares(blocks: QuaiBlock[]): WorkshareSample {
   let workshares = 0;
-
-  for (const b of blocks) {
-    const miner = b.woHeader?.primaryCoinbase;
-    if (miner) minerCount.set(miner, (minerCount.get(miner) ?? 0) + 1);
-    if (Array.isArray(b.workshares)) workshares += b.workshares.length;
-    for (const tx of b.transactions ?? []) {
-      if (tx.etxType) {
-        if (tx.etxType === "0x1") coinbaseEtx++;
-        else otherEtx++;
-      } else if (tx.type === "0x0") {
-        normalTx++;
-      }
+  let etxCoinbase = 0;
+  let etxOther = 0;
+  for (const block of blocks) {
+    if (Array.isArray(block.workshares)) workshares += block.workshares.length;
+    for (const tx of block.transactions ?? []) {
+      if (tx.etxType === "0x1") etxCoinbase++;
+      else if (tx.etxType) etxOther++;
     }
   }
+  return { sampled: blocks.length, workshares, etxCoinbase, etxOther };
+}
 
-  const total = blocks.length || 1;
-  const miners = [...minerCount.entries()]
-    .map(([address, blocks]) => ({ address, blocks, pct: (blocks / total) * 100 }))
+type MinerRow = { address: string; blocks: number; pct: number };
+
+function rankMiners(counts: Record<string, number>): { rows: MinerRow[]; total: number } {
+  const entries = Object.entries(counts ?? {});
+  const total = entries.reduce((sum, [, n]) => sum + n, 0);
+  const rows = entries
+    .map(([address, blocks]) => ({
+      address,
+      blocks,
+      pct: total > 0 ? (blocks / total) * 100 : 0,
+    }))
     .sort((a, b) => b.blocks - a.blocks);
-
-  return { sampled: blocks.length, miners, coinbaseEtx, otherEtx, normalTx, workshares };
+  return { rows, total };
 }
 
 export function MinerStats() {
-  const [sample, setSample] = useState(50);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [summary, setSummary] = useState<ExplorerMiningSummary | null>(null);
+  const [hashrate, setHashrate] = useState<ExplorerHashrate | null>(null);
+  const [sample, setSample] = useState<WorkshareSample | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     const ctrl = new AbortController();
-    setLoading(true);
-    setErr(null);
-    getRecentBlocks(sample, undefined, ctrl.signal)
-      .then((blocks) => {
-        if (alive) setStats(computeStats(blocks));
+
+    Promise.all([
+      getExplorerMiningSummary({ signal: ctrl.signal }),
+      getExplorerHashrate({ signal: ctrl.signal }),
+    ])
+      .then(([nextSummary, nextHashrate]) => {
+        if (!alive) return;
+        setSummary(nextSummary);
+        setHashrate(nextHashrate);
       })
-      .catch((e) => {
-        if (alive && !ctrl.signal.aborted) setErr((e as Error).message);
+      .catch((cause) => {
+        if (alive && !ctrl.signal.aborted) setErr((cause as Error).message);
       })
       .finally(() => {
         if (alive) setLoading(false);
       });
+
+    // Workshares are a separate, clearly-labelled local sample.
+    getRecentBlocks(WORKSHARE_SAMPLE_BLOCKS, undefined, ctrl.signal)
+      .then((blocks) => {
+        if (alive) setSample(sampleWorkshares(blocks));
+      })
+      .catch(() => {
+        /* optional panel — the rest of the page is unaffected */
+      });
+
     return () => {
       alive = false;
       ctrl.abort();
     };
-  }, [sample]);
+  }, []);
+
+  const miners = summary ? rankMiners(summary.minerCounts) : null;
+  const blocksCovered = summary?.minerCoverage?.blocks?.sampledRows ?? 0;
+  const truncated = summary?.minerCoverage?.blocks?.truncated ?? false;
 
   return (
     <div className="space-y-6">
-      {/* Mining distribution */}
+      {err && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          Failed to load mining data: {err}
+        </div>
+      )}
+
+      {/* Real hashrate, per algorithm */}
       <section className="card">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">
-            Mining Distribution{" "}
-            <span className="font-normal text-slate-400">· last {sample} blocks</span>
-          </h2>
-          <div className="flex gap-1">
-            {[50, 100].map((n) => (
-              <button
-                key={n}
-                onClick={() => setSample(n)}
-                disabled={loading}
-                className={
-                  "rounded-md px-2 py-1 text-xs font-medium disabled:opacity-50 " +
-                  (sample === n
-                    ? "bg-brand-600 text-white"
-                    : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800")
-                }
-              >
-                {n}
-              </button>
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold">Hashrate by algorithm</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Observed share work from <span className="mono">quai_getMiningInfo</span>, via the
+            official Quai Explorer.
+          </p>
+        </div>
+        {loading || !hashrate ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
             ))}
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <HashrateCell label="KawPoW" value={hashrate.hashratesExact.kawpow} />
+              <HashrateCell label="SHA" value={hashrate.hashratesExact.sha} />
+              <HashrateCell label="Scrypt" value={hashrate.hashratesExact.scrypt} />
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              {hashrate.avgBlockTime.toFixed(2)}s average block time over{" "}
+              {thousands(hashrate.blockCount)} blocks · {hashrate.measurement.trailingWindowSeconds / 60}
+              -minute window
+            </p>
+          </>
+        )}
+      </section>
+
+      {/* Block distribution — official 24h data */}
+      <section className="card">
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold">
+            Block distribution{" "}
+            <span className="font-normal text-slate-400">· last 24 hours</span>
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Share of blocks mined per address. This is block distribution, not hashrate.
+          </p>
         </div>
 
-        {err ? (
-          <div className="py-6 text-center text-sm text-amber-600 dark:text-amber-400">{err}</div>
-        ) : loading ? (
-          <div className="py-8 text-center text-sm text-slate-500">
-            Scanning last {sample} blocks…
-            <div className="mt-3 space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-              ))}
-            </div>
+        {loading ? (
+          <div className="space-y-2 py-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+            ))}
           </div>
-        ) : stats ? (
+        ) : !miners || miners.rows.length === 0 ? (
+          <p className="py-4 text-sm text-slate-500">No miner data reported.</p>
+        ) : (
           <>
             <div className="space-y-2">
-              {stats.miners.map((m) => (
-                <div key={m.address} className="flex items-center gap-3 text-sm">
+              {miners.rows.map((miner) => (
+                <div key={miner.address} className="flex items-center gap-3 text-sm">
                   <a
-                    href={`${QUAISCAN_BASE}/address/${m.address}`}
+                    href={`${QUAISCAN_BASE}/address/${miner.address}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="link mono w-32 shrink-0 text-xs"
                   >
-                    {shortAddress(m.address)}
+                    {shortAddress(miner.address)}
                   </a>
                   <div className="relative h-6 flex-1 overflow-hidden rounded bg-slate-100 dark:bg-slate-800">
                     <div
                       className="h-full rounded bg-brand-500/70"
-                      style={{ width: `${m.pct}%` }}
+                      style={{ width: `${Math.max(miner.pct, 0.4)}%` }}
                     />
                   </div>
-                  <span className="w-24 shrink-0 text-right tabular-nums text-slate-500">
-                    {m.blocks} · {m.pct.toFixed(0)}%
+                  <span className="w-28 shrink-0 text-right tabular-nums text-slate-500">
+                    {thousands(miner.blocks)} · {miner.pct.toFixed(1)}%
                   </span>
                 </div>
               ))}
             </div>
             <p className="mt-3 text-xs text-slate-400">
-              {stats.miners.length} unique miners across {stats.sampled} blocks.
+              {miners.rows.length} miners across {thousands(blocksCovered || miners.total)} blocks
+              {truncated ? " (sample truncated by the explorer)" : ""}.
             </p>
           </>
-        ) : null}
+        )}
       </section>
 
-      {/* Network composition + workshares */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <section className="card">
-          <h2 className="mb-3 text-sm font-semibold">Network Composition</h2>
-          {loading || !stats ? (
-            <div className="h-24 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-          ) : (
-            <div className="space-y-2 text-sm">
-              <Row label="Coinbase ETX (miner payouts)" value={stats.coinbaseEtx} />
-              <Row label="Cross-shard / other ETX" value={stats.otherEtx} />
-              <Row label="Normal transactions" value={stats.normalTx} />
-              <p className="pt-2 text-xs text-slate-400">
-                From {stats.sampled} blocks. Quai is currently single-zone
-                (Cyprus-1), so cross-shard ETX activity is expected to be zero.
-              </p>
-            </div>
-          )}
-        </section>
-
-        <section className="card">
-          <h2 className="mb-3 text-sm font-semibold">Workshares</h2>
-          {loading || !stats ? (
-            <div className="h-24 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-          ) : (
-            <div className="space-y-1">
+      {/* Workshares — local sample, size stated */}
+      <section className="card">
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold">Workshares</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Sub-block proof-of-work — a Quai-specific measure of merged-mining participation.
+          </p>
+        </div>
+        {!sample ? (
+          <div className="h-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+        ) : (
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+            <div>
               <div className="text-3xl font-bold tabular-nums">
-                {(stats.workshares / (stats.sampled || 1)).toFixed(1)}
+                {(sample.workshares / (sample.sampled || 1)).toFixed(1)}
               </div>
               <div className="text-xs text-slate-400">avg per block</div>
-              <p className="pt-3 text-xs text-slate-500">
-                {stats.workshares} workshares across {stats.sampled} blocks — a
-                Quai-specific measure of merged-mining participation.
-              </p>
             </div>
-          )}
-        </section>
-      </div>
+            <div>
+              <div className="text-3xl font-bold tabular-nums">{thousands(sample.workshares)}</div>
+              <div className="text-xs text-slate-400">
+                across {sample.sampled} sampled blocks
+              </div>
+            </div>
+          </div>
+        )}
+        {sample && (
+          <p className="mt-3 text-xs text-slate-400">
+            Sampled live from the last {sample.sampled} blocks via RPC. Of {" "}
+            {thousands(sample.etxCoinbase + sample.etxOther)} ETXs in that sample,{" "}
+            {thousands(sample.etxCoinbase)} were miner payouts (coinbase) and{" "}
+            {thousands(sample.etxOther)} were cross-shard — Quai runs a single zone
+            (Cyprus-1) today, so cross-shard activity is expected to be zero.
+          </p>
+        )}
+      </section>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: number }) {
+/** Format a raw hash/s figure with an SI suffix (H/s → PH/s). */
+function formatHashrate(raw: string): string {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return "-";
+  const units = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
+  let scaled = value;
+  let unit = 0;
+  while (scaled >= 1000 && unit < units.length - 1) {
+    scaled /= 1000;
+    unit++;
+  }
+  return `${scaled.toFixed(scaled < 10 ? 2 : 1)} ${units[unit]}`;
+}
+
+function HashrateCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-slate-600 dark:text-slate-300">{label}</span>
-      <span className="tabular-nums font-medium">{value}</span>
+    <div className="rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800">
+      <div className="stat-label">{label}</div>
+      <div className="mt-1 text-2xl font-bold tabular-nums">{formatHashrate(value)}</div>
+      <div className="mt-0.5 text-xs text-slate-400">{compactNumber(Number(value))} H/s</div>
     </div>
   );
 }

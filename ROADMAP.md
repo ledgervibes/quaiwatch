@@ -28,9 +28,12 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 ## ✅ Phase 4 — Deeper analytics
 
-- Miner analytics (block distribution, hashrate share)
-- ETX composition breakdown (coinbase / cross-shard / conversion mix)
-- Token holder distribution (top 50 holders)
+- Per-algorithm hashrate (KawPoW / SHA / Scrypt) from `quai_getMiningInfo`
+- 24-hour block distribution per miner, from the official explorer's mining
+  summary (~17k blocks) rather than a small local sample
+- Quai ↔ Qi conversion activity — daily counts and volumes
+- Workshares and ETX composition
+- Token holder distribution (top 50)
 
 ## ✅ Phase 5 — Wrapped Qi (WQI) tracking
 

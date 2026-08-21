@@ -254,6 +254,137 @@ export function getExplorerTvl(days: 1 | 7 | 30 = 7, options?: FetchOptions) {
   return get<ExplorerTvl>(`/api/stats/tvl?days=${days}`, options);
 }
 
+// ============================================================
+// Mining (official)
+// ============================================================
+
+/**
+ * Per-algorithm hashrate and difficulty.
+ *
+ * `measurement.semantics` is "observed_share_work" from
+ * `quai_getMiningInfo` on go-quai v0.55 — this is a real hashrate figure, unlike
+ * a per-miner block count, which only describes block distribution.
+ */
+export type ExplorerHashrate = {
+  asOf: string;
+  avgBlockTime: number;
+  blockCount: number;
+  hashratesExact: { kawpow: string; sha: string; scrypt: string };
+  difficultiesExact: { kawpow: string; sha: string; scrypt: string };
+  measurement: {
+    source: string;
+    semantics: string;
+    trailingWindowSeconds: number;
+    blockNumber: string;
+  };
+};
+
+export function getExplorerHashrate(options?: FetchOptions) {
+  return get<ExplorerHashrate>("/api/stats/hashrate", options);
+}
+
+/**
+ * Mining summary. `minerCounts` maps miner address -> blocks mined in the window.
+ *
+ * IMPORTANT: only `minutes=1440` returns a populated result. Verified live —
+ * minutes=60 and minutes=360 both return a single miner and an empty
+ * `minerCoverage.blocks.sampledRows`, so shorter windows are not usable.
+ *
+ * `hashrateHistory` returns a single point, so it cannot drive a trend chart.
+ * (For an hourly hashrate series, see the SOAP endpoint's `history` instead.)
+ */
+export type ExplorerMiningSummary = {
+  minutes: number;
+  asOf: string;
+  indexedTip: { height: string; timestamp: string };
+  minerCounts: Record<string, number>;
+  minerCoverage: {
+    blocks: { available: boolean; sampledRows: number; truncated: boolean };
+    workshares: { available: boolean; sampledRows: number; truncated: boolean };
+  };
+  lastQuaiReward: string | null;
+  lastQiReward: string | null;
+};
+
+/** Mining summary for the only supported window (24h). */
+export function getExplorerMiningSummary(options?: FetchOptions) {
+  return get<ExplorerMiningSummary>("/api/mining/summary?minutes=1440", options);
+}
+
+// ============================================================
+// Daily aggregates (Quai <-> Qi conversions)
+// ============================================================
+
+/**
+ * One day of chain aggregates. QuaiWatch uses the conversion fields, which are
+ * what reopened conversion monitoring: 26 of the last 30 days show activity.
+ *
+ * Units: `quai*` amounts are wei (1e18), `qi*` amounts are qits (1e3).
+ */
+export type ExplorerDailyItem = {
+  date: string;
+  txCountTotal: number;
+  quaiToQiTxCount: number;
+  qiToQuaiTxCount: number;
+  quaiSentForConversion: string;
+  qiSentForConversion: string;
+  quaiReceivedFromConversion: string;
+  qiReceivedFromConversion: string;
+  activeAddresses: number;
+  blockCount: number;
+};
+
+export function getExplorerDaily(options?: FetchOptions) {
+  return get<{ items: ExplorerDailyItem[] }>("/api/stats/daily", options);
+}
+
+// ============================================================
+// SOAP merged-mining participation
+// ============================================================
+
+/**
+ * One donor chain's SOAP participation.
+ *
+ * `participationPct` is Quai's hashrate as a share of the donor chain's, derived
+ * from signed AuxPoW evidence. When a donor's target is not committed on-chain
+ * the explorer sets the numbers to null and explains why in `unavailableReason`
+ * — DOGE is in that state (verified: 168/168 history buckets null), so it must be
+ * shown as unavailable rather than as 0%.
+ */
+export type ExplorerSoapNetwork = {
+  id: string;
+  algorithm: string;
+  asOf: string | null;
+  quaiHashrate: string | null;
+  donorHashrate: string | null;
+  participationPct: string | null;
+  targetBlockSeconds: number | null;
+  proofCount: string | null;
+  unavailableReason: string | null;
+};
+
+/** One hourly bucket of the participation series. */
+export type ExplorerSoapBucket = {
+  bucket: string;
+  quaiHashrate: string | null;
+  donorHashrate: string | null;
+  participationPct: string | null;
+};
+
+export type ExplorerSoap = {
+  days: number;
+  asOf: string;
+  source: { authority: string };
+  projection: { status: string; selectedWindowComplete: boolean };
+  networks: ExplorerSoapNetwork[];
+  /** Hourly series per donor chain. Verified: 168 points each over 7 days. */
+  history: Record<string, ExplorerSoapBucket[]>;
+};
+
+export function getExplorerSoap(days: 1 | 7 | 30 = 7, options?: FetchOptions) {
+  return get<ExplorerSoap>(`/api/stats/soap?days=${days}`, options);
+}
+
 /** Convert explorer decimal/scientific strings to a display-safe number. */
 export function explorerNumber(value: string | number | null | undefined): number {
   if (value == null || value === "") return 0;

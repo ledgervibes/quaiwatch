@@ -51,8 +51,9 @@ export const PHASES: Phase[] = [
     title: "Deeper analytics",
     done: true,
     items: [
-      "Miner analytics (block distribution, hashrate share)",
-      "ETX composition breakdown",
+      "Per-algorithm hashrate + 24h block distribution (official explorer data)",
+      "Quai ↔ Qi conversion activity",
+      "Workshares and ETX composition",
       "Token holder distribution (top 50)",
     ],
   },

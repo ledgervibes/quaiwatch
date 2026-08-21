@@ -36,8 +36,9 @@ Cloudflare Web Analytics (privacy-first, cookieless).
 - **Token discovery** — every QRC-20 token on the network with holders and
   supply.
 - **Rich list** — top native QUAI holders.
-- **Analytics** — mining distribution, network composition (ETX), and
-  workshares, plus per-token holder distribution (top 50).
+- **Analytics** — per-algorithm hashrate (KawPoW / SHA / Scrypt), 24h block
+  distribution per miner from the official explorer, workshares, Quai ↔ Qi
+  conversion activity, plus per-token holder distribution (top 50).
 - **Wrapped Qi tracking** — WQI supply, holder distribution, and transfer
   activity including mint and burn events.
 - **DeFi & SOAP** — official Quainance pools, TVL, 24h volume and estimated fees
