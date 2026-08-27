@@ -97,10 +97,14 @@ export function DefiAnalytics() {
           sub={dex ? `${thousands(dex.txCount)} lifetime txs` : "\u00a0"}
         />
         <StatCard
-          label="QUAI Burned (SOAP)"
+          label="Held at Burn Address"
           loading={loading}
-          value={soap ? compactNumber(soap.burnedQuai) : "-"}
-          sub={soap && quaiUsd != null ? usd(soap.burnedQuai * quaiUsd, 0) : "Buy-and-burn"}
+          value={soap ? compactNumber(soap.balanceQuai) : "-"}
+          sub={
+            soap && quaiUsd != null
+              ? `${usd(soap.balanceQuai * quaiUsd, 0)} · SOAP buy-and-burn`
+              : "SOAP buy-and-burn"
+          }
         />
       </div>
 
@@ -157,7 +161,8 @@ export function DefiAnalytics() {
           <div>
             <h2 className="text-sm font-semibold">SOAP Buyback &amp; Burn</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Merge-mining subsidies buy QUAI, which is burned here (100%).
+              Merge-mining subsidies buy QUAI, which is sent here. The figure above is the
+              address&apos; current balance, not an independently proven burn total.
             </p>
           </div>
           <a

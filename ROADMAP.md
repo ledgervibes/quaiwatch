@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v7.0** — all seven phases complete.
+Current release: **v8.0** — all eight phases complete.
 
 QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done → vN.0). This file is kept in sync with `src/lib/roadmap.ts`, the single source of truth used by the app.
 
@@ -32,7 +32,7 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 - 24-hour block distribution per miner, from the official explorer's mining
   summary (~17k blocks) rather than a small local sample
 - Quai ↔ Qi conversion activity — daily counts and volumes
-- Workshares and ETX composition
+- Workshares and ETX composition (post-Singularity: 32 workshares/block, SHA 8→16, Scrypt 8→16)
 - Token holder distribution (top 50)
 
 ## ✅ Phase 5 — Wrapped Qi (WQI) tracking
@@ -62,6 +62,12 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 - Read-only public API at `/api/v1/*` (`network`, `portfolio/{address}`, `defi`,
   `conversions`) — normalized, edge-cached, CORS-open, no API key, rate limited
 
+## ✅ Phase 8 — User Personalization & Token Depth
+
+- LocalStorage watchlist with header dropdown
+- Token detail page (price chart, holders, transfers)
+- Mobile-responsive card layouts (Rich List, Tokens, Portfolio)
+
 ---
 
 ## Not on the roadmap yet (blocked — no data)
@@ -73,4 +79,4 @@ QuaiWatch ships in phases. Each completed phase bumps the version (Phase N done 
 
 ---
 
-All seven phases are shipped. Everything is built on a 100% free stack: public Quai RPC, the official Quai Explorer, Quaiscan, and Cloudflare.
+All eight phases are shipped. Everything is built on a 100% free stack: public Quai RPC, the official Quai Explorer, Quaiscan, and Cloudflare.

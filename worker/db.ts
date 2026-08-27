@@ -114,26 +114,106 @@ export async function getAwaiting(db: D1Database, chatId: number): Promise<strin
 
 // ---- dedup ----
 
-/** Returns true if this (tx, address) was already alerted. Records it if not. */
-export async function alreadyAlerted(
+/**
+ * Atomically claim the right to deliver one alert.
+ *
+ * WHY INSERT-FIRST AND WHY IT MUST BE ATOMIC: the old implementation ran a
+ * SELECT and then an INSERT. Two overlapping cron invocations could both see no
+ * row and both send the same alert. `INSERT OR IGNORE` decides the winner inside
+ * SQLite, and `meta.changes` tells us whether this invocation is the winner.
+ *
+ * Returns true when the caller owns delivery. Returns false when another run
+ * already claimed it, in which case the caller must NOT send.
+ *
+ * The claim is provisional: if delivery fails in a way that could succeed later,
+ * the caller must call `releaseAlertClaim` so a future run retries instead of
+ * dropping the notification.
+ */
+export async function claimAlert(
   db: D1Database,
-  txHash: string,
+  key: string,
   address: string,
 ): Promise<boolean> {
-  const row = await db
-    .prepare("SELECT 1 FROM alert_sent WHERE tx_hash = ? AND address = ?")
-    .bind(txHash, address)
-    .first();
-  if (row) return true;
-  await db
+  const res = await db
     .prepare("INSERT OR IGNORE INTO alert_sent (tx_hash, address, sent_at) VALUES (?, ?, ?)")
-    .bind(txHash, address, Date.now())
+    .bind(key, address, Date.now())
     .run();
-  return false;
+  return (res.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Give up a claim so the alert is retried on a later run.
+ *
+ * Used when Telegram was unreachable, rate limited, or returned a 5xx — the
+ * transfer really happened and the user still needs to hear about it.
+ */
+export async function releaseAlertClaim(
+  db: D1Database,
+  key: string,
+  address: string,
+): Promise<void> {
+  await db
+    .prepare("DELETE FROM alert_sent WHERE tx_hash = ? AND address = ?")
+    .bind(key, address)
+    .run();
 }
 
 /** Prune alert_sent rows older than 7 days. */
 export async function pruneAlerts(db: D1Database): Promise<void> {
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   await db.prepare("DELETE FROM alert_sent WHERE sent_at < ?").bind(cutoff).run();
+}
+
+// ---- native balance reconciliation ----
+
+/**
+ * Last observed native QUAI balance per watched address.
+ *
+ * WHY THIS EXISTS: scanning `transactions[]` only sees TOP-LEVEL transfers. A
+ * contract paying an address out (a faucet/claim/withdraw, a router refund, a
+ * cross-shard ETX credit) moves QUAI without any top-level tx whose `to` is the
+ * user, so tx scanning alone silently misses real incoming funds. The public RPC
+ * is not an archive node (`quai_getBalance` at an old height returns the CURRENT
+ * balance, verified live), and the explorer reports
+ * `traceCertification: "UNAVAILABLE"` for internal call frames, so neither
+ * historical balances nor traces are available for free.
+ *
+ * What IS available and cheap is the current balance. Storing it per address and
+ * diffing it every run detects any credit or debit regardless of mechanism.
+ */
+export type BalanceRow = { address: string; balance: string; block: number };
+
+export async function getTrackedBalances(
+  db: D1Database,
+): Promise<Map<string, BalanceRow>> {
+  const res = await db
+    .prepare("SELECT address, balance, block FROM address_balance")
+    .all<BalanceRow>();
+  const map = new Map<string, BalanceRow>();
+  for (const row of res.results ?? []) map.set(row.address, row);
+  return map;
+}
+
+export async function setTrackedBalance(
+  db: D1Database,
+  address: string,
+  balance: bigint,
+  block: number,
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO address_balance (address, balance, block, updated_at) VALUES (?, ?, ?, ?) " +
+        "ON CONFLICT(address) DO UPDATE SET balance = excluded.balance, block = excluded.block, updated_at = excluded.updated_at",
+    )
+    .bind(address, balance.toString(), block, Date.now())
+    .run();
+}
+
+/** Drop balance rows for addresses nobody watches any more. */
+export async function pruneTrackedBalances(db: D1Database): Promise<void> {
+  await db
+    .prepare(
+      "DELETE FROM address_balance WHERE address NOT IN (SELECT address FROM watchlist)",
+    )
+    .run();
 }

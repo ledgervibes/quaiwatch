@@ -108,9 +108,63 @@ export function isAddress(value: string | null | undefined): value is string {
   return typeof value === "string" && ADDRESS_RE.test(value);
 }
 
-/** Parse a decimal/scientific string into a finite number (0 on failure). */
+/**
+ * Parse a decimal/scientific string into a finite number (0 on failure).
+ *
+ * PRECISION WARNING: only for values that are already scaled to human size
+ * (USD, percentages, counts). Raw integer amounts must go through `toBigInt` /
+ * `scaleBigInt`, because an 18-decimal wei balance exceeds
+ * Number.MAX_SAFE_INTEGER and would be silently rounded.
+ */
 export function toNumber(value: string | number | null | undefined): number {
   if (value == null || value === "") return 0;
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Parse a raw integer amount exactly.
+ *
+ * The explorer normally returns plain integer strings, but uses scientific
+ * notation for very large aggregates (verified live: supply comes back as
+ * "1.0833e+27"), which `BigInt()` rejects — so that form is expanded instead of
+ * being discarded.
+ */
+export function toBigInt(value: string | number | null | undefined): bigint {
+  if (value == null || value === "") return 0n;
+  const raw = String(value).trim();
+  if (/^-?\d+$/.test(raw)) return BigInt(raw);
+
+  const sci = /^(-?)(\d+)(?:\.(\d+))?[eE]\+?(\d+)$/.exec(raw);
+  if (sci) {
+    const [, sign, int, frac = "", expRaw] = sci;
+    const exp = Number(expRaw);
+    const digits = int + frac;
+    const zeros = exp - frac.length;
+    if (zeros >= 0) return BigInt(`${sign}${digits}${"0".repeat(zeros)}`);
+    return BigInt(`${sign}${digits.slice(0, digits.length + zeros)}`);
+  }
+  const plain = /^(-?\d+)\.\d+$/.exec(raw);
+  if (plain) return BigInt(plain[1]);
+  return 0n;
+}
+
+/**
+ * Scale a raw integer amount down by `decimals` without losing the integer part.
+ *
+ * Division happens in BigInt, so the whole units are exact; only the fractional
+ * remainder passes through double precision, which is harmless at display scale.
+ */
+export function scaleBigInt(
+  value: string | number | null | undefined,
+  decimals: number,
+): number {
+  const raw = toBigInt(value);
+  if (raw === 0n) return 0;
+  if (decimals <= 0) return Number(raw);
+  const divisor = 10n ** BigInt(decimals);
+  const whole = raw / divisor;
+  const remainder = raw < 0n ? -(raw % divisor) : raw % divisor;
+  const fraction = remainder.toString().padStart(decimals, "0");
+  return Number(`${whole}.${fraction}`);
 }

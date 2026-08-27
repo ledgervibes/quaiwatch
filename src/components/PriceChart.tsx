@@ -57,8 +57,8 @@ export function PriceChart() {
 
   return (
     <section className="card flex h-full flex-col">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold">QUAI Price</h2>
           </div>
@@ -78,7 +78,9 @@ export function PriceChart() {
             </div>
           )}
         </div>
-        <div className="flex gap-1">
+        {/* flex-wrap + ml-auto: on a 360px viewport this row was 1px wider than
+            the viewport, which gave the whole page a horizontal scrollbar. */}
+        <div className="ml-auto flex flex-wrap justify-end gap-1">
           {CHART_RANGES.map((r) => (
             <button
               key={r.key}

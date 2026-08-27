@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMediaQuery } from "@/lib/hooks";
+import Link from "next/link";
 import { getRichList, type AddressListItem, type PageParams } from "@/lib/quaiscan";
 import { formatQuaiAmount } from "@/lib/quai";
 import { shortAddress, thousands, trimDecimals, compactNumber } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
+import { CardRow } from "@/components/ui";
 
 /** Rich List / Top holders QUAI native. */
 export default function RichListPage() {
@@ -13,6 +16,7 @@ export default function RichListPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextParams, setNextParams] = useState<PageParams>(null);
   const [err, setErr] = useState<string | null>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -53,52 +57,71 @@ export default function RichListPage() {
 
       {err && <div className="text-sm text-rose-500">{err}</div>}
 
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 text-left text-xs uppercase text-slate-500 dark:border-slate-800">
-            <tr>
-              <th className="px-4 py-3">#</th>
-              <th className="px-4 py-3">Address</th>
-              <th className="px-4 py-3 text-right">Balance (QUAI)</th>
-              <th className="px-4 py-3 text-right">Txns</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {loading
-              ? Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={4} className="px-4 py-3">
-                      <div className="h-5 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-                    </td>
-                  </tr>
-                ))
-              : items.map((a, idx) => (
-                  <tr key={a.hash} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 tabular-nums text-slate-400">{idx + 1}</td>
-                    <td className="px-4 py-3">
-                      <a
-                        href={`${QUAISCAN_BASE}/address/${a.hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="link mono text-xs"
-                      >
-                        {shortAddress(a.hash, 10, 8)}
-                      </a>
-                      {a.name && <span className="ml-2 text-xs text-slate-400">{a.name}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium">
-                      {compactNumber(
-                        Number(trimDecimals(formatQuaiAmount(a.coin_balance), 0)),
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-500">
-                      {thousands(a.tx_count)}
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
-      </div>
+      {isMobile ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+              ))
+            : items.map((a, idx) => (
+                <Link key={a.hash} href={`/portfolio?address=${a.hash}`} className="block">
+                  <CardRow
+                    label={`#${idx + 1}`}
+                    value={compactNumber(Number(trimDecimals(formatQuaiAmount(a.coin_balance), 0)))}
+                    sub={`${thousands(a.tx_count)} txns`}
+                    href={`${QUAISCAN_BASE}/address/${a.hash}`}
+                  />
+                </Link>
+              ))}
+        </div>
+      ) : (
+        <div className="card overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 text-left text-xs uppercase text-slate-500 dark:border-slate-800">
+              <tr>
+                <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3">Address</th>
+                <th className="px-4 py-3 text-right">Balance (QUAI)</th>
+                <th className="px-4 py-3 text-right">Txns</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {loading
+                ? Array.from({ length: 12 }).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={4} className="px-4 py-3">
+                        <div className="h-5 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                      </td>
+                    </tr>
+                  ))
+                : items.map((a, idx) => (
+                    <tr key={a.hash} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="px-4 py-3 tabular-nums text-slate-400">{idx + 1}</td>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`${QUAISCAN_BASE}/address/${a.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="link mono text-xs"
+                        >
+                          {shortAddress(a.hash, 10, 8)}
+                        </Link>
+                        {a.name && <span className="ml-2 text-xs text-slate-400">{a.name}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums font-medium">
+                        {compactNumber(
+                          Number(trimDecimals(formatQuaiAmount(a.coin_balance), 0)),
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-500">
+                        {thousands(a.tx_count)}
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {!loading && nextParams && (
         <div className="flex justify-center">

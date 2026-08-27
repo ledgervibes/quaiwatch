@@ -3,7 +3,12 @@ main = "index.ts"
 compatibility_date = "2024-11-01"
 
 # Public URL of this Worker; used to auto-register the Telegram webhook.
-# Update this after the first deploy if the subdomain differs.
+#
+# MUST match the deployed URL. If it is wrong, Telegram delivers updates
+# nowhere. Registration is verified against Telegram's response and retried
+# every cron tick until it succeeds, so a wrong value shows up in the Worker
+# logs as a repeated "setWebhook failed" rather than as a silently dead bot.
+# Verified reachable: returns HTTP 200.
 [vars]
 PUBLIC_URL = "https://quaiwatch-bot.sna4an287.workers.dev"
 

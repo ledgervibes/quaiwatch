@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useMediaQuery } from "@/lib/hooks";
 import { getTokens, type TokenInfo, type PageParams } from "@/lib/quaiscan";
 import { formatTokenAmount } from "@/lib/quai";
 import { shortAddress, thousands, compactNumber, trimDecimals } from "@/lib/format";
 import { QUAISCAN_BASE } from "@/lib/config";
 import { HolderPanel } from "@/components/HolderPanel";
+import { CardRow } from "@/components/ui";
 
 /** Token Discovery: list of all QRC-20 (without price — not available). */
 export default function TokensPage() {
@@ -15,6 +18,7 @@ export default function TokensPage() {
   const [nextParams, setNextParams] = useState<PageParams>(null);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -52,8 +56,6 @@ export default function TokensPage() {
       )
     : tokens;
 
-  // While the user is filtering, "Load more" is hidden (the filter only
-  // applies to already-loaded data) to avoid confusion.
   const canLoadMore = !q && !!nextParams;
 
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -78,31 +80,45 @@ export default function TokensPage() {
 
       {err && <div className="text-sm text-rose-500">{err}</div>}
 
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 text-left text-xs uppercase text-slate-500 dark:border-slate-800">
-            <tr>
-              <th className="px-4 py-3">Token</th>
-              <th className="px-4 py-3 text-right">Holders</th>
-              <th className="px-4 py-3 text-right">Total Supply</th>
-              <th className="px-4 py-3">Contract</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {loading
-              ? Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={4} className="px-4 py-3">
-                      <div className="h-5 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-                    </td>
-                  </tr>
-                ))
-              : filtered.map((t) => (
-                  <FragmentRow key={t.address} t={t} expanded={expanded} setExpanded={setExpanded} />
-                ))}
-          </tbody>
-        </table>
-      </div>
+      {isMobile ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+              ))
+            : filtered.map((t) => (
+                <Link key={t.address} href={`/tokens/${t.address}`} className="block">
+                  <TokenCard token={t} />
+                </Link>
+              ))}
+        </div>
+      ) : (
+        <div className="card overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 text-left text-xs uppercase text-slate-500 dark:border-slate-800">
+              <tr>
+                <th className="px-4 py-3">Token</th>
+                <th className="px-4 py-3 text-right">Holders</th>
+                <th className="px-4 py-3 text-right">Total Supply</th>
+                <th className="px-4 py-3">Contract</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {loading
+                ? Array.from({ length: 10 }).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={4} className="px-4 py-3">
+                        <div className="h-5 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                      </td>
+                    </tr>
+                  ))
+                : filtered.map((t) => (
+                    <FragmentRow key={t.address} t={t} expanded={expanded} setExpanded={setExpanded} />
+                  ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {canLoadMore && (
         <div className="flex justify-center">
@@ -116,6 +132,18 @@ export default function TokensPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function TokenCard({ token }: { token: TokenInfo }) {
+  const supply = Number(trimDecimals(formatTokenAmount(token.total_supply, Number(token.decimals || 18)), 0));
+  return (
+    <CardRow
+      label={token.symbol || "?"}
+      value={compactNumber(supply)}
+      sub={`${thousands(token.holders)} holders`}
+      href={`/tokens/${token.address}`}
+    />
   );
 }
 
@@ -138,11 +166,11 @@ function FragmentRow({
         <td className="px-4 py-3">
           <div className="flex items-center gap-1.5">
             <span className="text-slate-400">{isOpen ? "▾" : "▸"}</span>
-            <div>
-              <div className="font-medium">{t.symbol || "?"}</div>
-              <div className="text-xs text-slate-400">{t.name}</div>
-            </div>
+            <Link href={`/tokens/${t.address}`} className="font-medium hover:text-brand-600">
+              {t.symbol || "?"}
+            </Link>
           </div>
+          <div className="text-xs text-slate-400">{t.name}</div>
         </td>
         <td className="px-4 py-3 text-right tabular-nums">{thousands(t.holders)}</td>
         <td className="px-4 py-3 text-right tabular-nums">

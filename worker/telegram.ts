@@ -1,5 +1,11 @@
 /**
  * worker/telegram.ts — Telegram Bot API helpers + command UI.
+ *
+ * DELIVERY IS VERIFIED, NOT ASSUMED. Telegram answers HTTP 200 with
+ * `{"ok": false, ...}` for a blocked bot, an invalid chat, a rate limit, or
+ * malformed HTML. Treating that as success is what makes an alert disappear
+ * silently, so every call here reports whether Telegram actually accepted it and
+ * the caller decides what to do.
  */
 
 const SUPPORT_ADDRESS = "0x0045F33e4b34775E0547193433de8B8F3CEd8Fc8";
@@ -10,16 +16,84 @@ export function api(token: string, method: string) {
   return `https://api.telegram.org/bot${token}/${method}`;
 }
 
+/** Result of a Telegram API call. `retryable` distinguishes "try again" from "never works". */
+export type TgResult = {
+  ok: boolean;
+  /** Telegram's error_code, when it returned one. */
+  errorCode?: number;
+  description?: string;
+  /** True when retrying later could succeed (network, 429, 5xx). */
+  retryable: boolean;
+};
+
+/**
+ * Escape text for Telegram's HTML parse mode.
+ *
+ * Token symbols come from contract calldata, so they are untrusted input. An
+ * unescaped `<`, `>`, or `&` makes Telegram reject the whole message, which
+ * previously turned a hostile or malformed token into a dropped alert.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+const TIMEOUT_MS = 10_000;
+
 export async function tg(
   token: string,
   method: string,
   payload: Record<string, unknown>,
-): Promise<void> {
-  await fetch(api(token, method), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+): Promise<TgResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(api(token, method), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    // 429 and 5xx are transient; 4xx (except 429) means the request itself is wrong.
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as
+        | { description?: string; error_code?: number }
+        | null;
+      return {
+        ok: false,
+        errorCode: body?.error_code ?? res.status,
+        description: body?.description ?? `HTTP ${res.status}`,
+        retryable: res.status === 429 || res.status >= 500,
+      };
+    }
+
+    const body = (await res.json().catch(() => null)) as
+      | { ok?: boolean; description?: string; error_code?: number }
+      | null;
+    if (!body || body.ok !== true) {
+      const code = body?.error_code;
+      return {
+        ok: false,
+        errorCode: code,
+        description: body?.description ?? "Telegram returned ok:false",
+        // 403 = bot blocked / kicked, 400 = bad request: retrying never helps.
+        retryable: code === 429 || (code !== undefined && code >= 500),
+      };
+    }
+    return { ok: true, retryable: false };
+  } catch (cause) {
+    // Network failure or timeout — always worth retrying.
+    return {
+      ok: false,
+      description: (cause as Error).message,
+      retryable: true,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Persistent reply keyboard shown under the input box. */
@@ -38,8 +112,8 @@ export async function sendMessage(
   chatId: number,
   text: string,
   extra: Record<string, unknown> = {},
-): Promise<void> {
-  await tg(token, "sendMessage", {
+): Promise<TgResult> {
+  return tg(token, "sendMessage", {
     chat_id: chatId,
     text,
     parse_mode: "HTML",
@@ -49,8 +123,8 @@ export async function sendMessage(
 }
 
 /** Register the bot command list (shown in the "/" menu). Idempotent. */
-export async function setCommands(token: string): Promise<void> {
-  await tg(token, "setMyCommands", {
+export async function setCommands(token: string): Promise<TgResult> {
+  return tg(token, "setMyCommands", {
     commands: [
       { command: "start", description: "Start the bot" },
       { command: "add", description: "Watch a new address" },
@@ -86,6 +160,7 @@ export function helpText(): string {
     "/help — this message\n\n" +
     "<b>Notes</b>\n" +
     "• QUAI transfers are alerted from 1 QUAI and up.\n" +
+    "• Contract payouts (claims, withdrawals, rewards) are included.\n" +
     "• All QRC-20 token transfers are alerted.\n" +
     "• Miner block rewards (coinbase) are ignored.\n" +
     "• Qi is not supported (no public RPC method)."

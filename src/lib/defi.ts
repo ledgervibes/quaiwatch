@@ -142,21 +142,29 @@ export async function getDexStats(signal?: AbortSignal): Promise<DexStats> {
 // ============================================================
 
 export type SoapStats = {
-  /** Cumulative QUAI held at the burn address (buy-and-burn holding), as bigint wei. */
-  burnedWei: bigint;
-  /** Human-readable QUAI amount. */
-  burnedQuai: number;
+  /** QUAI currently held at the burn address, as bigint wei. */
+  balanceWei: bigint;
+  /** Human-readable QUAI amount currently held at the burn address. */
+  balanceQuai: number;
   /** Number of transactions to the burn address (Quaiscan counter proxy). */
   txCount: number | null;
 };
 
-/** Read the SOAP burn address' native QUAI balance. */
+/**
+ * Read the SOAP burn address' current native QUAI balance.
+ *
+ * This is a BALANCE, not a proven cumulative burn total. It equals the amount
+ * burned only while the address never sends anything out and receives nothing
+ * unrelated. Neither property is verifiable for free here (the explorer reports
+ * internal call frames as `traceCertification: "UNAVAILABLE"`), so the value is
+ * named and labelled as a holding rather than presented as a burn total.
+ */
 export async function getSoapStats(signal?: AbortSignal): Promise<SoapStats> {
   const addr = await getAddress(SOAP_BURN_ADDRESS, signal);
-  const burnedWei = addr.coin_balance ? hexToBigIntSafe(addr.coin_balance) : 0n;
+  const balanceWei = addr.coin_balance ? hexToBigIntSafe(addr.coin_balance) : 0n;
   return {
-    burnedWei,
-    burnedQuai: Number(formatQuaiAmount(burnedWei)),
+    balanceWei,
+    balanceQuai: Number(formatQuaiAmount(balanceWei)),
     txCount: null,
   };
 }

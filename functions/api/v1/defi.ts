@@ -37,10 +37,18 @@ interface Tvl {
   pools?: TvlPool[];
 }
 
+const ALLOWED_DAYS = ["1", "7", "30"] as const;
+
 export async function onRequestGet(context: { request: Request }): Promise<Response> {
   const url = new URL(context.request.url);
   const daysParam = url.searchParams.get("days");
-  const days = daysParam === "1" || daysParam === "30" ? daysParam : "7";
+  // Reject unknown values instead of silently substituting 7. Quietly ignoring a
+  // parameter makes an integration look correct while returning a window the
+  // caller never asked for.
+  if (daysParam != null && !ALLOWED_DAYS.includes(daysParam as (typeof ALLOWED_DAYS)[number])) {
+    return jsonError("Invalid days parameter. Allowed values: 1, 7, 30.", 400);
+  }
+  const days = daysParam ?? "7";
 
   try {
     const tvl = await explorerJson<Tvl>(`/api/stats/tvl?days=${days}`);

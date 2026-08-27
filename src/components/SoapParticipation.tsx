@@ -105,10 +105,17 @@ export function SoapParticipation() {
             {soap.networks.map((net) => {
               const pct = net.participationPct == null ? null : Number(net.participationPct);
               return (
-                <div key={net.id} className="rounded-lg border border-slate-200 px-3 py-2.5 dark:border-slate-800">
-                  <div className="stat-label flex items-center justify-between">
-                    <span>{net.id}</span>
-                    <span className="font-normal text-slate-400">{net.algorithm}</span>
+                <div
+                  key={net.id}
+                  // min-w-0 + break-words: `unavailableReason` is an unbroken
+                  // machine token (e.g. "doge_target_not_committed_by_v055")
+                  // that widened the grid past the viewport on mobile and gave
+                  // the whole page a horizontal scrollbar.
+                  className="min-w-0 rounded-lg border border-slate-200 px-3 py-2.5 dark:border-slate-800"
+                >
+                  <div className="stat-label flex items-center justify-between gap-2">
+                    <span className="truncate">{net.id}</span>
+                    <span className="shrink-0 font-normal text-slate-400">{net.algorithm}</span>
                   </div>
                   {pct != null ? (
                     <>
@@ -123,7 +130,10 @@ export function SoapParticipation() {
                   ) : (
                     <>
                       <div className="mt-0.5 text-sm font-semibold text-slate-400">unavailable</div>
-                      <div className="text-xs text-slate-400" title={net.unavailableReason ?? ""}>
+                      <div
+                        className="break-words text-xs text-slate-400"
+                        title={net.unavailableReason ?? ""}
+                      >
                         {net.unavailableReason ?? "no signed evidence"}
                       </div>
                     </>

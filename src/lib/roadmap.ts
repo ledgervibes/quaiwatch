@@ -53,7 +53,7 @@ export const PHASES: Phase[] = [
     items: [
       "Per-algorithm hashrate + 24h block distribution (official explorer data)",
       "Quai ↔ Qi conversion activity",
-      "Workshares and ETX composition",
+      "Workshares and ETX composition (post-Singularity: 32 workshares/block)",
       "Token holder distribution (top 50)",
     ],
   },
@@ -81,6 +81,16 @@ export const PHASES: Phase[] = [
       "Pelagus connect (read-only, chain-ID validated)",
       "Portfolio — search any address or connect Pelagus",
       "Read-only public API (/api/v1/*)",
+    ],
+  },
+  {
+    n: 8,
+    title: "User Personalization & Token Depth",
+    done: true,
+    items: [
+      "LocalStorage watchlist with header dropdown",
+      "Token detail page (price chart, holders, transfers)",
+      "Mobile-responsive card layouts (Rich List, Tokens, Portfolio)",
     ],
   },
 ];

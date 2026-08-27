@@ -45,7 +45,9 @@ Cloudflare Web Analytics (privacy-first, cookieless).
   as reported by the Quai Explorer, plus SOAP buyback-and-burn history.
 - **Telegram alert bot** — [@QuaiWatchAlertBot](https://t.me/QuaiWatchAlertBot)
   sends real-time alerts when QUAI (from 1 QUAI) or any QRC-20 token moves in or
-  out of your watched wallets. Miner rewards (coinbase) are ignored.
+  out of your watched wallets. Contract payouts (claims, withdrawals, rewards)
+  are included via balance reconciliation, since they leave no top-level
+  transaction. Miner rewards (coinbase) are ignored.
 - **Public API** — free, read-only, normalized JSON for other developers. See
   below.
 - **Dark / light mode.**
@@ -70,18 +72,24 @@ it is self-describing and lists every endpoint with a runnable example.
 - Qi uses **3 decimals**, not 18. `balances.qi` is already divided by 10^3.
 - `tokens[].balance` is decimal-adjusted; `tokens[].balanceRaw` is the raw
   integer string. Big integers are returned as **strings** to preserve precision.
+- `balancesRaw` carries the unrounded integer strings for QUAI and Qi. Scaling is
+  done with BigInt division, so whole units are exact, but if you need bit-exact
+  arithmetic use `balancesRaw` / `balanceRaw` rather than the scaled numbers —
+  JSON numbers cannot represent an 18-decimal wei value exactly.
 
 **Errors.** Always `{"error": "message"}` with an appropriate status:
-`400` invalid input (e.g. malformed address), `429` rate limited (includes a
-`Retry-After` header), `502` upstream failure.
+`400` invalid input (e.g. malformed address, unsupported `days` value), `429`
+rate limited (includes a `Retry-After` header), `502` upstream failure. Invalid
+query parameters are rejected rather than silently replaced with a default.
 
 **Rate limit.** 60 requests/minute per IP on `/api/v1/*`, advertised via
 `RateLimit-*` response headers. This exists because QuaiWatch reads the official
 explorer server-side, and that upstream limit is counted per IP — shared across
 all Cloudflare visitors. A second global guard keeps total upstream usage below
-the explorer's ceiling so heavy API traffic can't take the dashboard down.
-Responses are edge-cached (see each response's `Cache-Control`), so polling the
-same endpoint is cheap.
+the explorer's ceiling so heavy API traffic can't take the dashboard down. Only
+requests that actually reach the explorer consume that guard, so the
+self-describing index is never charged against it. Responses are edge-cached
+(see each response's `Cache-Control`), so polling the same endpoint is cheap.
 
 **Transaction history is intentionally absent** from the portfolio endpoint.
 Balances are sub-second, but history needs a separate upstream call with very
@@ -113,7 +121,27 @@ QuaiWatch ships in phases — currently **v7.0** (all seven phases complete). Se
   (`functions/api/explorer/[[path]].ts`) with a path allow-list and edge caching.
   Several address sub-resources are still unstable upstream — `balance-history`
   and `lockups` return 503 for every address tested, and the native
-  `/api/address/{a}/transactions` 503s for low-activity wallets.
+  `/api/address/{a}/transactions` 503s for low-activity wallets. `/api/address/{a}`
+  can also answer **HTTP 200 with `info: null`** for some high-activity accounts
+  while its balance read model is provisional, so the UI treats balances as
+  unavailable for those rather than failing.
+- **Alert delivery is verified, not assumed**: Telegram answers HTTP 200 with
+  `{"ok": false}` for a blocked bot, an invalid chat, a rate limit, or malformed
+  HTML. The bot checks both the HTTP status and that field. A dedup row is an
+  atomic delivery *claim* (`INSERT OR IGNORE` + `meta.changes`), released again on
+  a retryable failure so the alert is retried instead of silently lost. The scan
+  cursor only advances across blocks whose alerts were fully handled, so a backlog
+  is worked through rather than skipped.
+- **Contract payouts need balance reconciliation**: a block's `transactions[]`
+  contains only top-level transactions, so QUAI arriving from a claim/withdraw
+  contract produces no transaction whose `to` is the user — transaction scanning
+  alone misses it. Verified live: `quai_getBalance` at an old height returns the
+  *current* balance (the public RPC is not an archive node), and the explorer
+  reports `/address/{a}/internal-txs` as `traceCertification: "UNAVAILABLE"`. So
+  the bot stores the last balance per watched address and alerts on any change it
+  cannot account for from the transactions it already saw, deliberately
+  conservative so gas costs and locked coinbase rewards can't produce a false
+  alert. See `worker/scanner.ts`.
 - **Address transaction history**: read from the explorer's
   **Etherscan-compatible** surface (`/api?module=account&action=txlist`), not the
   native endpoint and not Quaiscan. Measured: Etherscan-compat &lt;2s for every
@@ -161,8 +189,13 @@ QuaiWatch ships in phases — currently **v7.0** (all seven phases complete). Se
 pnpm install
 pnpm dev          # http://localhost:3000
 pnpm build        # static export to ./out
-pnpm typecheck
+pnpm typecheck    # app + Pages Functions + Worker + tests
+pnpm test         # node:test, no extra dependency
 ```
+
+`pnpm test` covers the alert pipeline (contract payouts, backlog handling,
+Telegram failure retry, concurrent-run dedup), amount precision, upstream error
+handling, and public-API input validation.
 
 ## Deploy
 
@@ -173,6 +206,20 @@ Pages:
 pnpm build
 wrangler pages deploy out --project-name quaiwatch --branch master
 ```
+
+The alert bot is a separate Worker. Apply the schema **before** deploying it —
+`schema.sql` is idempotent, and every table it creates is required by the first
+webhook or cron request:
+
+```bash
+wrangler d1 execute quaiwatch --file=schema.sql --remote
+cd worker && wrangler deploy
+```
+
+`PUBLIC_URL` in `worker/wrangler.toml` must match the deployed Worker URL. If it
+is wrong, webhook registration fails, is **not** recorded as done, and retries on
+the next cron tick — check the Worker logs for `setWebhook failed` rather than
+assuming a silent success.
 
 ## License
 

@@ -31,6 +31,11 @@ type WorkshareSample = { sampled: number; workshares: number; etxCoinbase: numbe
 
 const WORKSHARE_SAMPLE_BLOCKS = 50;
 
+/**
+ * Post-Singularity (go-quai v0.51.0, Mar 2026): workshares per block doubled
+ * from 16 to 32. SHA-256: 8→16, Scrypt: 8→16, KawPoW unchanged.
+ * The local sample reflects the new counts.
+ */
 function sampleWorkshares(blocks: QuaiBlock[]): WorkshareSample {
   let workshares = 0;
   let etxCoinbase = 0;
@@ -233,6 +238,9 @@ export function MinerStats() {
             (Cyprus-1) today, so cross-shard activity is expected to be zero.
           </p>
         )}
+        <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">
+          Post-Singularity (v0.51.0): 32 workshares/block (was 16). SHA 8→16, Scrypt 8→16.
+        </p>
       </section>
     </div>
   );

@@ -8,9 +8,10 @@ import { VERSION } from "@/lib/roadmap";
  * Settings page. Section order:
  *   1. Telegram Bot (coming soon)
  *   2. Buy Me a Coffee (wallet address + copy)
- *   3. Progress (version complete + short description)
- *   4. Disclaimer (moved from the footer)
- *   5. Links (GitHub + X, at the bottom)
+ *   3. Where to Buy QUAI (CEX + DEX links)
+ *   4. Progress (version complete + short description)
+ *   5. Disclaimer (moved from the footer)
+ *   6. Links (GitHub + X, at the bottom)
  * No theme selection (already available via the navbar toggle).
  */
 export default function SettingsPage() {
@@ -20,6 +21,7 @@ export default function SettingsPage() {
 
       <TelegramSection />
       <CoffeeSection />
+      <BuyQuaiSection />
       <ProgressSection />
       <DisclaimerSection />
       <LinksSection />
@@ -34,7 +36,7 @@ function TelegramSection() {
         <div>
           <h2 className="text-sm font-semibold">Telegram Bot</h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Real-time wallet alerts for incoming &amp; outgoing transactions.
+            Real-time wallet alerts for incoming & outgoing transactions.
           </p>
         </div>
         <a
@@ -96,6 +98,86 @@ function CoffeeSection() {
         </div>
       )}
     </section>
+  );
+}
+
+function BuyQuaiSection() {
+  return (
+    <section className="card">
+      <h2 className="text-sm font-semibold">Where to Buy QUAI</h2>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        Official exchanges and DEXes. Always verify contract addresses.
+      </p>
+      <div className="mt-3 space-y-2">
+        <BuyLink
+          name="Kraken"
+          type="CEX"
+          url="https://pro.kraken.com/app/trade/quai-usd"
+          desc="QUAI/USD spot trading"
+        />
+        <BuyLink
+          name="Aerodrome (Base)"
+          type="DEX"
+          url="https://aerodrome.finance/swap?from=eth&to=0x5c97d726bf5130ae15408ce32bc764e458320d2f&chain0=8453&chain1=8453"
+          desc="QUAI/WETH on Base"
+        />
+        <BuyLink
+          name="Quainance"
+          type="DEX"
+          url="https://quainance.com"
+          desc="QUAI/WQI, USDT pairs on Cyprus-1"
+        />
+      </div>
+      <p className="mt-3 text-[11px] text-amber-600 dark:text-amber-400">
+        Not financial advice. Verify contract addresses before trading.
+      </p>
+    </section>
+  );
+}
+
+function BuyLink({
+  name,
+  type,
+  url,
+  desc,
+}: {
+  name: string;
+  type: "CEX" | "DEX";
+  url: string;
+  desc: string;
+}) {
+  const badgeColor =
+    type === "CEX"
+      ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+      : "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400";
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2.5 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium truncate">{name}</span>
+          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${badgeColor}`}>
+            {type}
+          </span>
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{desc}</div>
+      </div>
+      <ExternalLinkIcon />
+    </a>
+  );
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-slate-400" aria-hidden>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
   );
 }
 

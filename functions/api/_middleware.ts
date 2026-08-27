@@ -87,6 +87,18 @@ function tooManyRequests(retryAfter: number, scope: string): Response {
   );
 }
 
+/**
+ * True when this path can reach the Quai Explorer.
+ *
+ * `/api/v1` (exactly) is a locally generated index, so it never touches an
+ * upstream and must not consume the shared explorer budget.
+ */
+function touchesUpstream(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "");
+  if (path === "/api/v1") return false;
+  return true;
+}
+
 export async function onRequest(context: {
   request: Request;
   next: () => Promise<Response>;
@@ -118,8 +130,15 @@ export async function onRequest(context: {
     return tooManyRequests(secondsUntilReset(ipCounter, now), "per-ip");
   }
 
-  if (!consume(upstream, UPSTREAM_BUDGET_PER_MIN, now)) {
-    return tooManyRequests(secondsUntilReset(upstream, now), "upstream-budget");
+  // The upstream budget exists to protect the explorer's per-IP quota, so only
+  // routes that actually reach the explorer may spend it. The self-describing
+  // index is generated locally and consumes nothing upstream — charging it (as
+  // the previous version did) burned real explorer headroom on a static
+  // response and could 429 the dashboard for no reason.
+  if (touchesUpstream(url.pathname)) {
+    if (!consume(upstream, UPSTREAM_BUDGET_PER_MIN, now)) {
+      return tooManyRequests(secondsUntilReset(upstream, now), "upstream-budget");
+    }
   }
 
   const response = await next();

@@ -109,6 +109,13 @@ export type ExplorerTokenBalancesResponse = {
 
 export type ExplorerAddress = {
   address: string;
+  /**
+   * Null for some accounts. Verified live: the explorer answers
+   * `/api/address/{a}` with HTTP 200 and `info: null` for certain
+   * high-activity addresses (e.g. large miners) while its balance read model is
+   * still provisional. Callers must treat this as "balances unavailable" rather
+   * than dereferencing it.
+   */
   info: {
     address: string;
     type: string | null;
@@ -124,8 +131,11 @@ export type ExplorerAddress = {
     internal_tx_count: string;
     token_transfer_count: string;
     last_balance_block: string;
-  };
+  } | null;
   txs: unknown[];
+  /** Present when the explorer explains why balances are missing. */
+  balanceUnavailableReason?: string | null;
+  txCount?: number | null;
 };
 
 export function getExplorerPrice(options?: FetchOptions) {
@@ -164,6 +174,14 @@ export type ExplorerTxListItem = {
 
 type EtherscanEnvelope<T> = { status: string; message: string; result: T };
 
+/** Thrown when the Etherscan-compatible surface reports a real failure. */
+export class ExplorerApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExplorerApiError";
+  }
+}
+
 /**
  * Address transaction history via the explorer's Etherscan-compatible endpoint.
  *
@@ -178,6 +196,11 @@ type EtherscanEnvelope<T> = { status: string; message: string; result: T };
  *
  * `page` is 1-based and verified to work for deep paging (page 2 and 3 return
  * older, non-overlapping rows).
+ *
+ * ERROR HANDLING: only the documented "no transactions found" envelope maps to an
+ * empty list. Any other non-success envelope throws, because returning `[]` for a
+ * rate limit or upstream failure renders as "this address has no transactions" —
+ * a wrong answer presented as a confident one.
  */
 export async function getExplorerAddressTxList(
   address: string,
@@ -197,9 +220,22 @@ export async function getExplorerAddressTxList(
     `/api?${params.toString()}`,
     options,
   );
-  // The envelope uses status "0" with a string result for "no transactions found".
-  if (envelope.status !== "1" || !Array.isArray(envelope.result)) return [];
-  return envelope.result;
+  if (envelope.status === "1" && Array.isArray(envelope.result)) {
+    return envelope.result;
+  }
+  // Etherscan convention: status "0" + this message means genuinely empty.
+  const message = typeof envelope.message === "string" ? envelope.message : "";
+  const resultText = typeof envelope.result === "string" ? envelope.result : "";
+  if (/no transactions found/i.test(message) || /no transactions found/i.test(resultText)) {
+    return [];
+  }
+  // Some deployments answer an empty page with status "0" and an empty array.
+  if (Array.isArray(envelope.result) && envelope.result.length === 0) return [];
+
+  // The envelope's `message` is often just "NOTOK"; the actionable reason (rate
+  // limit, invalid parameter) lives in `result`, so prefer that.
+  const detail = resultText || message || "unknown error";
+  throw new ExplorerApiError(`Transaction history unavailable: ${detail}`);
 }
 
 /**
@@ -385,11 +421,75 @@ export function getExplorerSoap(days: 1 | 7 | 30 = 7, options?: FetchOptions) {
   return get<ExplorerSoap>(`/api/stats/soap?days=${days}`, options);
 }
 
-/** Convert explorer decimal/scientific strings to a display-safe number. */
+/**
+ * Convert explorer decimal/scientific strings to a display-safe number.
+ *
+ * PRECISION WARNING: this goes through IEEE-754, so it is only safe for values
+ * that are already scaled down (USD figures, decimal-adjusted reserves,
+ * percentages). For raw integer amounts (wei, qits, token base units) use
+ * `explorerBigInt` / `explorerScaled`, because raw 18-decimal balances exceed
+ * `Number.MAX_SAFE_INTEGER` and would be silently rounded.
+ */
 export function explorerNumber(value: string | number | null | undefined): number {
   if (value == null || value === "") return 0;
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Parse a raw integer amount without losing precision.
+ *
+ * The explorer returns raw balances as integer strings, but occasionally uses
+ * scientific notation for very large aggregates (e.g. "1.0833e+27"), which
+ * `BigInt()` rejects — so that form is expanded rather than dropped.
+ */
+export function explorerBigInt(value: string | number | null | undefined): bigint {
+  if (value == null || value === "") return 0n;
+  const raw = String(value).trim();
+  if (/^-?\d+$/.test(raw)) return BigInt(raw);
+
+  const sci = /^(-?)(\d+)(?:\.(\d+))?[eE]\+?(\d+)$/.exec(raw);
+  if (sci) {
+    const [, sign, int, frac = "", expRaw] = sci;
+    const exp = Number(expRaw);
+    // Shift the decimal point right by `exp`, padding with zeros.
+    const digits = int + frac;
+    const zeros = exp - frac.length;
+    if (zeros >= 0) return BigInt(`${sign}${digits}${"0".repeat(zeros)}`);
+    return BigInt(`${sign}${digits.slice(0, digits.length + zeros)}`);
+  }
+  // Last resort: a fractional string with no exponent. Truncate the fraction.
+  const plain = /^(-?\d+)\.\d+$/.exec(raw);
+  if (plain) return BigInt(plain[1]);
+  return 0n;
+}
+
+/**
+ * Scale a raw integer amount down by `decimals`, keeping full precision through
+ * the division and only converting to a number at the end.
+ *
+ * The returned number is for display and arithmetic on human-scale values (a
+ * balance in QUAI, not in wei), where double precision is more than enough.
+ */
+export function explorerScaled(
+  value: string | number | null | undefined,
+  decimals: number,
+): number {
+  const raw = explorerBigInt(value);
+  if (raw === 0n) return 0;
+  if (decimals <= 0) return Number(raw);
+  const divisor = 10n ** BigInt(decimals);
+  const whole = raw / divisor;
+  const remainder = raw < 0n ? -(raw % divisor) : raw % divisor;
+  // Reconstruct as a decimal string so the integer part keeps its exactness for
+  // any value a display can meaningfully render.
+  const fraction = remainder.toString().padStart(decimals, "0");
+  return Number(`${whole}.${fraction}`);
+}
+
+/** True when a raw integer amount is greater than zero, without precision loss. */
+export function explorerHasBalance(value: string | number | null | undefined): boolean {
+  return explorerBigInt(value) > 0n;
 }
 
 export function formatExplorerAmount(
@@ -397,7 +497,7 @@ export function formatExplorerAmount(
   decimals: number,
   fractionDigits = 4,
 ): string {
-  const amount = explorerNumber(value) / 10 ** decimals;
+  const amount = explorerScaled(value, decimals);
   return amount.toLocaleString("en-US", {
     maximumFractionDigits: fractionDigits,
   });

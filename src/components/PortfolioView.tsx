@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMediaQuery } from "@/lib/hooks";
 import {
-  explorerNumber,
+  explorerHasBalance,
+  explorerScaled,
   formatExplorerAmount,
   getExplorerAddress,
   getExplorerAddressTxList,
@@ -16,11 +18,13 @@ import {
 import {
   connectPelagus,
   getConnectedPelagusAccount,
+  getPelagusChainId,
   isPelagusAvailable,
 } from "@/lib/pelagus";
 import { rpcCall } from "@/lib/quai";
-import { QUAISCAN_BASE } from "@/lib/config";
+import { CHAIN_ID, QUAISCAN_BASE } from "@/lib/config";
 import { shortAddress, usd, thousands, timeAgo, tokenAmount } from "@/lib/format";
+import { CardRow } from "@/components/ui";
 
 /** How the current address was supplied. */
 type Origin = "none" | "wallet" | "search";
@@ -54,6 +58,15 @@ export function PortfolioView() {
   // Abort in-flight history when the address changes, so a slow reply can't
   // overwrite newer data.
   const txAbort = useRef<AbortController | null>(null);
+  /**
+   * Monotonic request id for the primary (balances) load.
+   *
+   * Explorer latency varies, so searching address A and then B can resolve out
+   * of order and leave B's address next to A's balances. Every load captures the
+   * id it started with and discards its own result if a newer load has begun.
+   */
+  const loadSeq = useRef(0);
+  const loadAbort = useRef<AbortController | null>(null);
 
   const loadHistory = useCallback(async (target: string) => {
     txAbort.current?.abort();
@@ -99,22 +112,30 @@ export function PortfolioView() {
 
   const load = useCallback(
     async (target: string, from: Origin) => {
+      const seq = ++loadSeq.current;
+      loadAbort.current?.abort();
+      const controller = new AbortController();
+      loadAbort.current = controller;
+      const isStale = () => seq !== loadSeq.current;
+
       setLoading(true);
       setError(null);
       try {
         // Balances and holdings come from the explorer (verified stable, sub-second).
         // These gate the loading state; history does not.
         const [nextInfo, nextTokens, nextPrice] = await Promise.all([
-          getExplorerAddress(target),
-          getExplorerTokenBalances(target),
-          getExplorerPrice(),
+          getExplorerAddress(target, { signal: controller.signal }),
+          getExplorerTokenBalances(target, { signal: controller.signal }),
+          getExplorerPrice({ signal: controller.signal }),
         ]);
+        if (isStale()) return;
         setAddress(target);
         setOrigin(from);
         setInfo(nextInfo);
-        setTokens(nextTokens.items.filter((item) => explorerNumber(item.balance) > 0));
+        setTokens(nextTokens.items.filter((item) => explorerHasBalance(item.balance)));
         setPrice(nextPrice);
       } catch (cause) {
+        if (isStale()) return;
         setError((cause as Error).message);
         setLoading(false);
         return;
@@ -125,8 +146,14 @@ export function PortfolioView() {
       // the WQI token), so the contract flag comes from quai_getCode instead:
       // an EOA returns "0x", a contract returns bytecode.
       rpcCall<string>("quai_getCode", [target, "latest"])
-        .then((code) => setIsContract(!!code && code.length > 2))
-        .catch(() => setIsContract(false));
+        .then((code) => {
+          if (isStale()) return;
+          setIsContract(!!code && code.length > 2);
+        })
+        .catch(() => {
+          if (isStale()) return;
+          setIsContract(false);
+        });
 
       // Fire-and-forget: history loads in its own lane with its own state.
       void loadHistory(target);
@@ -135,6 +162,8 @@ export function PortfolioView() {
   );
 
   const reset = useCallback(() => {
+    loadSeq.current++;
+    loadAbort.current?.abort();
     txAbort.current?.abort();
     setAddress(null);
     setOrigin("none");
@@ -152,11 +181,28 @@ export function PortfolioView() {
     let alive = true;
     // Silent check only — never opens the Pelagus popup. The approval prompt is
     // triggered exclusively by the Connect button.
-    getConnectedPelagusAccount()
-      .then((connected) => {
-        if (alive && connected) void load(connected, "wallet");
-      })
-      .catch(() => undefined);
+    //
+    // The chain is verified here too: an already-authorized wallet skips the
+    // Connect path entirely, so without this check a wallet sitting on another
+    // network would be loaded from the Cyprus-1 explorer and labelled "Your
+    // Quai position" — wrong data presented as the user's own.
+    void (async () => {
+      try {
+        const connected = await getConnectedPelagusAccount();
+        if (!alive || !connected) return;
+        const chainId = await getPelagusChainId();
+        if (!alive) return;
+        if (chainId !== CHAIN_ID) {
+          setError(
+            `Pelagus is on chain ID ${chainId}. Switch to Quai mainnet (chain ID ${CHAIN_ID}) to load your wallet.`,
+          );
+          return;
+        }
+        void load(connected, "wallet");
+      } catch {
+        // A locked or unapproved wallet is a normal state, not an error.
+      }
+    })();
 
     const provider = typeof window !== "undefined" ? window.pelagus : undefined;
     const onAccountsChanged = (...args: unknown[]) => {
@@ -172,6 +218,7 @@ export function PortfolioView() {
     provider?.on?.("chainChanged", onChainChanged);
     return () => {
       alive = false;
+      loadAbort.current?.abort();
       txAbort.current?.abort();
       provider?.removeListener?.("accountsChanged", onAccountsChanged);
       provider?.removeListener?.("chainChanged", onChainChanged);
@@ -202,13 +249,25 @@ export function PortfolioView() {
   }
 
   const busy = loading || connecting;
-  const quai = info ? explorerNumber(info.info.balance_quai) / 1e18 : 0;
-  const qi = info ? explorerNumber(info.info.balance_qi) / 1e3 : 0;
-  const lockedQuai = info ? explorerNumber(info.info.locked_balance_quai) / 1e18 : 0;
-  const lockedQi = info ? explorerNumber(info.info.locked_balance_qi) / 1e3 : 0;
-  const quaiValue = price ? quai * price.quai.usd : null;
-  const qiValue = price ? qi * price.qi.usd : null;
+  /**
+   * The explorer returns HTTP 200 with `info: null` for some accounts while its
+   * balance read model is provisional (verified live on a large miner address).
+   * Reading through it crashed the whole page with a client-side exception, so
+   * balances are treated as unavailable and the rest of the view still renders.
+   */
+  const balances = info?.info ?? null;
+  const balancesUnavailable = info != null && balances == null;
+  // Raw balances are integer strings in wei/qits, well past Number.MAX_SAFE_INTEGER.
+  // explorerScaled divides with BigInt first so the displayed amount is exact.
+  const quai = balances ? explorerScaled(balances.balance_quai, 18) : 0;
+  const qi = balances ? explorerScaled(balances.balance_qi, 3) : 0;
+  const lockedQuai = balances ? explorerScaled(balances.locked_balance_quai, 18) : 0;
+  const lockedQi = balances ? explorerScaled(balances.locked_balance_qi, 3) : 0;
+  const quaiValue = price && balances ? quai * price.quai.usd : null;
+  const qiValue = price && balances ? qi * price.qi.usd : null;
   const totalValue = quaiValue != null && qiValue != null ? quaiValue + qiValue : null;
+
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   return (
     <div className="space-y-5">
@@ -316,38 +375,48 @@ export function PortfolioView() {
         </section>
       )}
 
+      {balancesUnavailable && (
+        <section className="card border-amber-300 bg-amber-50 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          The official explorer has not published balances for this address yet
+          {info?.balanceUnavailableReason ? ` (${info.balanceUnavailableReason})` : ""}. Token
+          holdings and transaction history below are unaffected.
+        </section>
+      )}
+
       {info && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Metric label="Total value" value={totalValue != null ? usd(totalValue, 2) : "-"} />
-            <Metric
-              label="QUAI"
-              value={`${tokenAmount(quai)} QUAI`}
-              sub={
-                lockedQuai > 0
-                  ? `${quaiValue != null ? usd(quaiValue, 2) + " · " : ""}${tokenAmount(lockedQuai)} locked`
-                  : quaiValue != null
-                    ? usd(quaiValue, 2)
-                    : undefined
-              }
-            />
-            <Metric
-              label="Qi"
-              value={`${tokenAmount(qi, 3)} Qi`}
-              sub={
-                lockedQi > 0
-                  ? `${qiValue != null ? usd(qiValue, 2) + " · " : ""}${tokenAmount(lockedQi, 3)} locked`
-                  : qiValue != null
-                    ? usd(qiValue, 2)
-                    : undefined
-              }
-            />
-            <Metric
-              label="Transactions"
-              value={thousands(info.info.tx_count)}
-              sub={`${thousands(info.info.token_transfer_count)} token transfers`}
-            />
-          </div>
+          {balances && (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Metric label="Total value" value={totalValue != null ? usd(totalValue, 2) : "-"} />
+              <Metric
+                label="QUAI"
+                value={`${tokenAmount(quai)} QUAI`}
+                sub={
+                  lockedQuai > 0
+                    ? `${quaiValue != null ? usd(quaiValue, 2) + " · " : ""}${tokenAmount(lockedQuai)} locked`
+                    : quaiValue != null
+                      ? usd(quaiValue, 2)
+                      : undefined
+                }
+              />
+              <Metric
+                label="Qi"
+                value={`${tokenAmount(qi, 3)} Qi`}
+                sub={
+                  lockedQi > 0
+                    ? `${qiValue != null ? usd(qiValue, 2) + " · " : ""}${tokenAmount(lockedQi, 3)} locked`
+                    : qiValue != null
+                      ? usd(qiValue, 2)
+                      : undefined
+                }
+              />
+              <Metric
+                label="Transactions"
+                value={thousands(balances.tx_count)}
+                sub={`${thousands(balances.token_transfer_count)} token transfers`}
+              />
+            </div>
+          )}
 
           <section className="card overflow-hidden p-0">
             <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -361,20 +430,36 @@ export function PortfolioView() {
               <p className="p-4 text-sm text-slate-500">No indexed token holdings.</p>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {tokens.map((item) => (
-                  <div
-                    key={`${item.token_address}-${item.id}`}
-                    className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium">{item.token.symbol || "Unknown"}</div>
-                      <div className="truncate text-xs text-slate-500">{item.token.name}</div>
-                    </div>
-                    <div className="tabular-nums">
-                      {formatExplorerAmount(item.balance, item.token.decimals)}
-                    </div>
+                {isMobile ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {tokens.map((item) => (
+                      <CardRow
+                        key={`${item.token_address}-${item.id}`}
+                        label={item.token.symbol || "Unknown"}
+                        value={formatExplorerAmount(item.balance, item.token.decimals)}
+                        sub={item.token.name}
+                        href={`${QUAISCAN_BASE}/token/${item.token_address}`}
+                      />
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <>
+                    {tokens.map((item) => (
+                      <div
+                        key={`${item.token_address}-${item.id}`}
+                        className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-medium">{item.token.symbol || "Unknown"}</div>
+                          <div className="truncate text-xs text-slate-500">{item.token.name}</div>
+                        </div>
+                        <div className="tabular-nums">
+                          {formatExplorerAmount(item.balance, item.token.decimals)}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </section>
@@ -432,11 +517,12 @@ export function PortfolioView() {
             )}
           </section>
 
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Balances indexed through block{" "}
-            {Number(info.info.last_balance_block).toLocaleString("en-US")} · data from the official
-            Quai Explorer.
-          </p>
+          {balances && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Balances indexed through block {thousands(balances.last_balance_block)} · data from
+              the official Quai Explorer.
+            </p>
+          )}
         </>
       )}
     </div>
@@ -446,7 +532,7 @@ export function PortfolioView() {
 function TxRow({ tx, address }: { tx: ExplorerTxListItem; address: string | null }) {
   const outbound = tx.from?.toLowerCase() === address?.toLowerCase();
   const failed = tx.isError === "1" || tx.txreceipt_status === "0";
-  const value = explorerNumber(tx.value) / 1e18;
+  const value = explorerScaled(tx.value, 18);
   const counterparty = outbound ? tx.to : tx.from;
 
   return (

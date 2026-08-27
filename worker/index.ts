@@ -13,23 +13,32 @@ import {
   getAwaiting,
   getState,
   setState,
+  setTrackedBalance,
 } from "./db";
 import {
   sendMessage,
   setCommands,
+  tg,
   MAIN_KEYBOARD,
   startText,
   helpText,
   supportText,
   supportButton,
   shortAddr,
+  type TgResult,
 } from "./telegram";
 import { scan } from "./scanner";
+import { getNativeBalances } from "./explorer";
 import { rpc, formatUnits } from "./rpc";
 
 const MAX_WALLETS = 10;
 const ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
 const WEBHOOK_FLAG = "webhook_registered";
+/**
+ * Bump this when the webhook URL, secret derivation, or allowed_updates change
+ * so an already-registered deployment re-registers itself on the next tick.
+ */
+const WEBHOOK_VERSION = "2";
 
 /** Derive a webhook secret from the bot token (no second secret needed). */
 async function webhookSecret(token: string): Promise<string> {
@@ -58,22 +67,53 @@ export default {
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runCron(env));
+    // Surface failures instead of letting waitUntil swallow them: a silently
+    // dying cron is exactly how missed alerts go unnoticed.
+    ctx.waitUntil(
+      runCron(env).catch((e) => {
+        console.log("cron error: " + (e as Error).message);
+      }),
+    );
   },
 };
 
 async function runCron(env: Env): Promise<void> {
-  // One-time webhook registration + command setup.
+  // Webhook registration + command setup.
+  //
+  // The flag is only set after Telegram CONFIRMS registration. Setting it
+  // unconditionally meant a failed first registration (bad token, wrong
+  // PUBLIC_URL, DNS trouble, Telegram outage) was recorded as done and never
+  // retried, leaving a bot that silently receives nothing until someone edits
+  // D1 by hand.
   const registered = await getState(env.DB, WEBHOOK_FLAG);
-  if (!registered) {
-    await registerWebhook(env);
-    await setCommands(env.TELEGRAM_BOT_TOKEN);
-    await setState(env.DB, WEBHOOK_FLAG, "1");
+  if (registered !== WEBHOOK_VERSION) {
+    const hook = await registerWebhook(env);
+    if (hook.ok) {
+      const cmds = await setCommands(env.TELEGRAM_BOT_TOKEN);
+      if (cmds.ok) {
+        await setState(env.DB, WEBHOOK_FLAG, WEBHOOK_VERSION);
+      } else {
+        console.log(`setMyCommands failed: ${cmds.description ?? "unknown"}`);
+      }
+    } else {
+      // Left unset on purpose: the next cron tick tries again.
+      console.log(`setWebhook failed: ${hook.description ?? "unknown"}`);
+    }
   }
-  await scan(env);
+  // Alerts are the product: never let a price-refresh failure abort them, and
+  // never let a scan failure skip the price refresh.
+  try {
+    await scan(env);
+  } catch (e) {
+    console.log("scan error: " + (e as Error).message);
+  }
   // Best-effort QUAI price refresh (CoinGecko rate-limits Cloudflare IPs, so
   // we retry every cron tick; occasional successes keep the cached value fresh).
-  await refreshPrice(env);
+  try {
+    await refreshPrice(env);
+  } catch (e) {
+    console.log("price refresh error: " + (e as Error).message);
+  }
 }
 
 /** Try to fetch QUAI price and store it in D1. Silent on failure. */
@@ -123,19 +163,19 @@ async function fetchQuaiPrice(): Promise<{ usd: number; chg: number } | null> {
   return null;
 }
 
-async function registerWebhook(env: Env): Promise<void> {
+async function registerWebhook(env: Env): Promise<TgResult> {
   const secret = await webhookSecret(env.TELEGRAM_BOT_TOKEN);
-  const url = env.PUBLIC_URL ? `${env.PUBLIC_URL}/tg` : undefined;
-  if (!url) return;
-  await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url,
-      secret_token: secret,
-      allowed_updates: ["message"],
-      drop_pending_updates: true,
-    }),
+  // PUBLIC_URL must point at THIS deployment. It is configuration, not a
+  // guess — if it is missing, say so instead of reporting success.
+  const base = env.PUBLIC_URL?.replace(/\/+$/, "");
+  if (!base) {
+    return { ok: false, description: "PUBLIC_URL is not configured", retryable: false };
+  }
+  return tg(env.TELEGRAM_BOT_TOKEN, "setWebhook", {
+    url: `${base}/tg`,
+    secret_token: secret,
+    allowed_updates: ["message"],
+    drop_pending_updates: true,
   });
 }
 
@@ -213,6 +253,10 @@ async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     }
     await addWatch(env.DB, chatId, text);
     await setAwaiting(env.DB, chatId, null);
+    // Seed the balance baseline immediately. The scanner only alerts on a
+    // CHANGE from a known baseline, so seeding here keeps the blind window to
+    // the moment of registration instead of the next cron tick.
+    await seedBalanceBaseline(env, text.toLowerCase());
     const total = await countWatch(env.DB, chatId);
     await sendMessage(
       token,
@@ -229,6 +273,27 @@ async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   await sendMessage(token, chatId, "Send a valid Quai address (0x…), or use the menu below.", {
     reply_markup: MAIN_KEYBOARD,
   });
+}
+
+/**
+ * Record the current native balance so the scanner has a baseline to diff.
+ *
+ * Without a baseline the first observed balance is treated as "not news" (it
+ * predates the watch), so seeding at registration time means the very next
+ * contract payout is detected. Read through the explorer, not the RPC, because
+ * the RPC rejects lowercase addresses (see worker/explorer.ts).
+ */
+async function seedBalanceBaseline(env: Env, address: string): Promise<void> {
+  try {
+    const head = parseInt(await rpc<string>("quai_blockNumber"), 16);
+    const balances = await getNativeBalances([address]);
+    const value = balances.get(address);
+    if (value == null) return;
+    await setTrackedBalance(env.DB, address, value, head);
+  } catch (e) {
+    // Non-fatal: the scanner seeds it on the next tick instead.
+    console.log("seed balance failed: " + (e as Error).message);
+  }
 }
 
 async function listText(env: Env, chatId: number): Promise<string> {

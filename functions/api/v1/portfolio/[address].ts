@@ -18,6 +18,8 @@ import {
   isAddress,
   json,
   jsonError,
+  scaleBigInt,
+  toBigInt,
   toNumber,
 } from "../../../_lib/upstream";
 
@@ -58,15 +60,19 @@ export async function onRequestGet(context: Ctx): Promise<Response> {
       explorerJson<Price>("/api/price/current"),
     ]);
 
-    const quai = toNumber(addr.info?.balance_quai) / 1e18;
-    const qi = toNumber(addr.info?.balance_qi) / 1e3;
+    // Raw balances are integer strings in wei/qits and routinely exceed
+    // Number.MAX_SAFE_INTEGER, so the scaling divides in BigInt first. The raw
+    // strings are also returned verbatim, so consumers who need exactness never
+    // have to trust our rounding.
+    const quai = scaleBigInt(addr.info?.balance_quai, 18);
+    const qi = scaleBigInt(addr.info?.balance_qi, 3);
     const quaiUsd = price.quai?.usd ?? null;
     const qiUsd = price.qi?.usd ?? null;
     const quaiValue = quaiUsd != null ? quai * quaiUsd : null;
     const qiValue = qiUsd != null ? qi * qiUsd : null;
 
     const tokens = (balances.items ?? [])
-      .filter((t) => toNumber(t.balance) > 0)
+      .filter((t) => toBigInt(t.balance) > 0n)
       .map((t) => ({
         address: t.token_address,
         name: t.token.name,
@@ -74,7 +80,7 @@ export async function onRequestGet(context: Ctx): Promise<Response> {
         decimals: t.token.decimals,
         type: t.token.type,
         balanceRaw: t.balance,
-        balance: toNumber(t.balance) / 10 ** (t.token.decimals || 0),
+        balance: scaleBigInt(t.balance, t.token.decimals || 0),
       }));
 
     return json(
@@ -83,8 +89,15 @@ export async function onRequestGet(context: Ctx): Promise<Response> {
         balances: {
           quai,
           qi,
-          lockedQuai: toNumber(addr.info?.locked_balance_quai) / 1e18,
-          lockedQi: toNumber(addr.info?.locked_balance_qi) / 1e3,
+          lockedQuai: scaleBigInt(addr.info?.locked_balance_quai, 18),
+          lockedQi: scaleBigInt(addr.info?.locked_balance_qi, 3),
+        },
+        /** Raw integer strings, exactly as indexed — no rounding applied. */
+        balancesRaw: {
+          quai: addr.info?.balance_quai ?? "0",
+          qi: addr.info?.balance_qi ?? "0",
+          lockedQuai: addr.info?.locked_balance_quai ?? "0",
+          lockedQi: addr.info?.locked_balance_qi ?? "0",
         },
         valuation: {
           quaiUsd: quaiValue,
